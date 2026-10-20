@@ -25,3 +25,7 @@ build/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Backups de .env (nunca versionar)
+backend/.env.*
+.env.bak
