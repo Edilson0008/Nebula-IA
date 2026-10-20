@@ -12,6 +12,7 @@ modelo). Falha de rede vira exceção com mensagem amigável — quem chama
 """
 
 import html as html_lib
+import os
 import re
 import unicodedata
 import urllib.parse
@@ -21,6 +22,10 @@ from email.utils import parsedate_to_datetime
 from zoneinfo import ZoneInfo
 
 import httpx
+
+# Unsplash (opcional) — melhor para foto por item exato
+# Crie uma app em https://unsplash.com/developers e coloque UNSPLASH_ACCESS_KEY no .env
+_UNSPLASH_URL = "https://api.unsplash.com/search/photos"
 
 # Parece navegador de verdade: alguns CDNs recusam clientes "pelados".
 _UA = {
@@ -860,27 +865,28 @@ def fotos(termo: str, quantidade: int = 6) -> list[dict]:
             break
 
     if not candidatos:
-        return []
-    candidatos = candidatos[: quantidade * 2]
+        # Tenta Unsplash se não achou nada
+        pass
 
     achadas: list[dict] = []
     vistos_ok: set[str] = set()
-    # Cada candidato custa uma requisição de detalhe; em paralelo é rápido.
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        for item in pool.map(_info_foto, candidatos):
-            if (
-                not item
-                or _FOTO_BLOQUEIO.search(item["titulo"])
-                or _FOTO_LIXO.search(item["titulo"])
-            ):
-                continue
-            assinatura = item["titulo"].lower()
-            if assinatura in vistos_ok:
-                continue
-            vistos_ok.add(assinatura)
-            achadas.append(item)
-            if len(achadas) >= quantidade:
-                break
+    if candidatos:
+        # Cada candidato custa uma requisição de detalhe; em paralelo é rápido.
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            for item in pool.map(_info_foto, candidatos):
+                if (
+                    not item
+                    or _FOTO_BLOQUEIO.search(item["titulo"])
+                    or _FOTO_LIXO.search(item["titulo"])
+                ):
+                    continue
+                assinatura = item["titulo"].lower()
+                if assinatura in vistos_ok:
+                    continue
+                vistos_ok.add(assinatura)
+                achadas.append(item)
+                if len(achadas) >= quantidade:
+                    break
 
     # Junta: Openverse primeiro (busca de conteúdo), Wikimedia completando.
     todas = list(abertas)
@@ -889,6 +895,39 @@ def fotos(termo: str, quantidade: int = 6) -> list[dict]:
         if item["url"] not in urls_vistas and len(todas) < quantidade:
             urls_vistas.add(item["url"])
             todas.append(item)
+
+    # Unsplash (opcional) — muito bom pra foto EXATA por item (nome do prato/animal)
+    key_unsplash = os.getenv("UNSPLASH_ACCESS_KEY") or os.getenv("UNSPLASH_KEY")
+    if key_unsplash and len(todas) < quantidade:
+        try:
+            resp = httpx.get(
+                _UNSPLASH_URL,
+                params={"query": termo, "per_page": min(30, max(10, quantidade * 4)), "orientation": "landscape"},
+                headers={"Authorization": f"Client-ID {key_unsplash}", "Accept-Version": "v1"},
+                timeout=_TIMEOUT,
+                follow_redirects=True,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                for res in data.get("results", []):
+                    urls = res.get("urls") or {}
+                    url = urls.get("regular") or urls.get("small") or urls.get("full")
+                    if not url:
+                        continue
+                    if url in urls_vistas:
+                        continue
+                    user = (res.get("user") or {}).get("name") or "Unsplash"
+                    alt = res.get("alt_description") or res.get("description") or termo
+                    titulo = f"{alt} — Foto: {user} / Unsplash"
+                    urls_vistas.add(url)
+                    todas.append({"url": url, "titulo": titulo[:140], "largura": int(res.get("width") or 0)})
+                    if len(todas) >= quantidade:
+                        break
+                if todas:
+                    print(f"[fotos] {len(todas)} com Unsplash/Openverse/Wikimedia para «{termo}»")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[fotos] Unsplash indisponível: {exc}")
+
     if not todas:
         return []
     if len(_FOTOS_CACHE) >= _MAX_CACHE:
