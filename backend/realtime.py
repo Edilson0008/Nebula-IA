@@ -422,7 +422,19 @@ _FOTO_LIXO = re.compile(
     # (rede de mercado), "Star Wars" (filme). O assunto do bloco é a coisa,
     # não a marca que pegou o nome dela.
     r"\b(ford|chevrolet|volkswagen|fiat|toyota|honda|renault|peugeot|"
-    r"star wars|star trek|p[ãa]o de a[çc][úu]car|kit carros)\b"
+    r"star wars|star trek|p[ãa]o de a[çc][úu]car|kit carros)\b|"
+    # Embalagem/produto comercial: "Batatas fritas Quento Snacks", "Burger
+    # King Onion Rings in Bag". Foto de cardápio é o PRATO servido, não o
+    # pacote de salgadinho nem o saco do fast food.
+    r"\b(snacks?|pacote|pacotes|embalagem|embalagens|saco|sacos|"
+    r"bag|bags|packaging|rótulo|rotulo|wrapper|caixa|lata|garrafa)\b|"
+    # Nome de arquivo/local geográfico que a Wikimedia usa como título:
+    # "geograph.org.uk", "(3280467846)", "Addingrove Farm". Não descrevem o
+    # assunto — só dizem de onde a foto veio. Foto boa tem título descritivo.
+    r"(geograph\.org\.uk|\(?\b\d{6,}\b\)?|\bfarm\b|\bcabin\b|\bjunction\b)|"
+    # Nome de cultivar/planta que é homônimo do tema ("Echinacea 'Milkshake'").
+    # O assunto é a bebida/prato, não a flor que pegou o mesmo nome.
+    r"'\s*[A-Z][a-z]+\s*'"
     r")"
 )
 
@@ -680,6 +692,69 @@ def _fotos_openverse(termo: str, quantidade: int) -> list[dict]:
     return achadas
 
 
+def _fotos_unsplash(termo: str, quantidade: int) -> list[dict]:
+    """Fotos do Unsplash (só quando há UNSPLASH_ACCESS_KEY no ambiente).
+
+    É a fonte que MELHOR acerta foto de produto/prato/lugar: o Unsplash é um
+    banco de fotografia profissional e casa por conteúdo (não por nome de
+    arquivo como a Wikimedia). Por isso entra PRIMEIRO: sem ela, "milkshake"
+    trazia a flor Echinacea 'Milkshake' e "batata frita" trazia pacote de
+    salgadinho da Argentina — foto certa do prato só veio do Unsplash.
+
+    Devolve ``[{"url","titulo","largura"}]``; lista vazia quando não há chave,
+    a rede falha ou nada bom aparece.
+    """
+    chave = os.getenv("UNSPLASH_ACCESS_KEY") or os.getenv("UNSPLASH_KEY")
+    if not chave or not chave.strip():
+        return []
+    try:
+        resposta = httpx.get(
+            _UNSPLASH_URL,
+            params={
+                "query": termo,
+                "per_page": min(30, max(10, quantidade * 4)),
+                "orientation": "landscape",
+                "content_filter": "high",
+            },
+            headers={
+                "Authorization": f"Client-ID {chave.strip()}",
+                "Accept-Version": "v1",
+            },
+            timeout=_TIMEOUT,
+            follow_redirects=True,
+        )
+        resposta.raise_for_status()
+        resultados = resposta.json().get("results", [])
+    except (httpx.HTTPError, ValueError) as exc:
+        print(f"[fotos] Unsplash indisponível: {type(exc).__name__}")
+        return []
+
+    achadas: list[dict] = []
+    for res in resultados:
+        urls = res.get("urls") or {}
+        url = urls.get("regular") or urls.get("small") or urls.get("full")
+        if not url:
+            continue
+        largura = int(res.get("width") or 0)
+        if largura and largura < 600:
+            continue
+        usuario = (res.get("user") or {}).get("name") or "Unsplash"
+        descricao = (
+            res.get("alt_description")
+            or res.get("description")
+            or termo
+        )
+        # O crédito entra no título (o site repassa em alt/legenda) — é o que
+        # a licença do Unsplash pede.
+        titulo = f"{descricao} — Foto: {usuario} / Unsplash"
+        achadas.append(
+            {"url": url, "titulo": titulo[:140], "largura": largura}
+        )
+        if len(achadas) >= quantidade:
+            break
+    return achadas
+
+
 def fotos(termo: str, quantidade: int = 6) -> list[dict]:
     """Fotos reais que combinam com o tema.
 
@@ -896,37 +971,16 @@ def fotos(termo: str, quantidade: int = 6) -> list[dict]:
             urls_vistas.add(item["url"])
             todas.append(item)
 
-    # Unsplash (opcional) — muito bom pra foto EXATA por item (nome do prato/animal)
-    key_unsplash = os.getenv("UNSPLASH_ACCESS_KEY") or os.getenv("UNSPLASH_KEY")
-    if key_unsplash and len(todas) < quantidade:
-        try:
-            resp = httpx.get(
-                _UNSPLASH_URL,
-                params={"query": termo, "per_page": min(30, max(10, quantidade * 4)), "orientation": "landscape"},
-                headers={"Authorization": f"Client-ID {key_unsplash}", "Accept-Version": "v1"},
-                timeout=_TIMEOUT,
-                follow_redirects=True,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                for res in data.get("results", []):
-                    urls = res.get("urls") or {}
-                    url = urls.get("regular") or urls.get("small") or urls.get("full")
-                    if not url:
-                        continue
-                    if url in urls_vistas:
-                        continue
-                    user = (res.get("user") or {}).get("name") or "Unsplash"
-                    alt = res.get("alt_description") or res.get("description") or termo
-                    titulo = f"{alt} — Foto: {user} / Unsplash"
-                    urls_vistas.add(url)
-                    todas.append({"url": url, "titulo": titulo[:140], "largura": int(res.get("width") or 0)})
-                    if len(todas) >= quantidade:
-                        break
-                if todas:
-                    print(f"[fotos] {len(todas)} com Unsplash/Openverse/Wikimedia para «{termo}»")
-        except Exception as exc:  # noqa: BLE001
-            print(f"[fotos] Unsplash indisponível: {exc}")
+    # Unsplash PRIMEIRO quando há chave: é foto profissional e casa por
+    # conteúdo, então acerta prato/produto/lugar muito melhor que o acervo
+    # livre. Sem ela, "milkshake" trazia a flor 'Milkshake' e "batata frita"
+    # trazia pacote de salgadinho. Com ela, a foto certa vem à frente.
+    do_unsplash = _fotos_unsplash(termo, quantidade)
+    if do_unsplash:
+        vistas = {item["url"] for item in do_unsplash}
+        resto = [item for item in todas if item["url"] not in vistas]
+        todas = do_unsplash + resto
+        print(f"[fotos] Unsplash trouxe {len(do_unsplash)} para «{termo}»")
 
     if not todas:
         return []
