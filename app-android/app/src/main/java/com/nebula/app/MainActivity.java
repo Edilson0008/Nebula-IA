@@ -2,6 +2,7 @@ package com.nebula.app;
 
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -118,7 +119,50 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // O WebView do Android IGNORA o atributo `download` do HTML: sem este
+        // listener, tocar em "Baixar" num arquivo gerado pela Nébula não faz
+        // NADA (o clique morre em silêncio). É o botão que mais faz falta — o
+        // usuário quer o site no aparelho. Aqui o download é feito de verdade
+        // e, ao terminar, o arquivo é aberto.
+        web.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
+            try {
+                // Nome a partir do endereço (index.html, site.zip, ...).
+                String nome = android.webkit.URLUtil.guessFileName(
+                        url, contentDisposition, mimeType);
+                DownloadManager.Request pedido = new DownloadManager.Request(Uri.parse(url));
+                pedido.setMimeType(mimeType);
+                pedido.setTitle(nome);
+                pedido.setDescription("Baixando da Nébula…");
+                pedido.setNotificationVisibility(
+                        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                // Fica visível na pasta Downloads do aparelho.
+                pedido.setDestinationInExternalPublicDir(
+                        android.os.Environment.DIRECTORY_DOWNLOADS, nome);
+                DownloadManager gerente =
+                        (DownloadManager) getSystemService(android.content.Context.DOWNLOAD_SERVICE);
+                if (gerente != null) {
+                    gerente.enqueue(pedido);
+                    Toast.makeText(MainActivity.this,
+                            "Baixando " + nome + "…", Toast.LENGTH_SHORT).show();
+                } else {
+                    abrirNoNavegador(url);
+                }
+            } catch (Exception falha) {
+                // Sem permissão/pasta: abre no navegador do aparelho, que baixa.
+                abrirNoNavegador(url);
+            }
+        });
+
         carregar();
+    }
+
+    /** Abre um endereço no navegador de fora (usado quando o WebView não dá conta). */
+    private void abrirNoNavegador(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception ignorado) {
+            Toast.makeText(this, "Não consegui baixar este arquivo.", Toast.LENGTH_SHORT).show();
+        }
     }
 
     /** Botão de engrenagem flutuante, no canto superior direito. */

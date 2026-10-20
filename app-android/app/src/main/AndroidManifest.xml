@@ -3,6 +3,12 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Baixar arquivos gerados (o WebView ignora o `download` do HTML, então
+         o download é feito pelo DownloadManager). Em Android 9 ou anterior ele
+         precisa dessa permissão para gravar na pasta Downloads. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <!-- O app abre a Nébula que roda no host (celular/computador do dono).
          usesCleartextTraffic liberado porque o endereço é http:// na rede local. -->
