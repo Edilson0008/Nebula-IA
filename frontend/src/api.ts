@@ -109,8 +109,18 @@ export interface StreamHandlers {
 }
 
 /** "limit" = cota momentânea (passa sozinho); "error" = falha de verdade. */
-export type ErrorKind = "limit" | "error";
+export interface BackupStats {
+  conversas: number;
+  mensagens: number;
+  memorias: number;
+}
 
+export interface BackupExport {
+  dados: string;
+  estatisticas: BackupStats;
+}
+
+export type ErrorKind = "limit" | "error";
 /** Erro vindo do stream, com o tipo junto para a tela escolher o visual. */
 export class StreamError extends Error {
   kind: ErrorKind;
@@ -364,4 +374,17 @@ export const api = {
 
   removeMemory: (memoryId: number) =>
     request<{ deleted: number }>(`/memories/${memoryId}`, { method: "DELETE" }),
+
+  // ------- Cópia de segurança (o servidor grátis apaga o disco) -------
+
+  backupStatus: () =>
+    request<{ vazio: boolean; estatisticas: BackupStats }>("/backup/status"),
+
+  backupExport: () => request<BackupExport>("/backup/export"),
+
+  backupImport: (dados: string) =>
+    request<{ ok: boolean; restaurado: BackupStats }>("/backup/import", {
+      method: "POST",
+      body: JSON.stringify({ dados }),
+    }),
 };

@@ -49,6 +49,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import agent
+import backup
 import cf_image
 import db
 import design_guide
@@ -2152,6 +2153,44 @@ def remove_memory(memory_id: int) -> dict:
     if not db.delete_memory(memory_id):
         raise HTTPException(status_code=404, detail="Memória não encontrada.")
     return {"deleted": memory_id}
+
+
+# ------------------------------------------------- cópia de segurança (cofre)
+# O plano grátis do Render apaga o disco a cada reinício. Estas rotas deixam
+# o site guardar/restaurar o histórico numa cópia que fica FORA do servidor.
+
+
+class CofreRecebido(BaseModel):
+    dados: str = Field(..., description="Banco em base64, vindo do cofre.")
+
+
+@app.get("/api/backup/export")
+def backup_export() -> dict:
+    """Devolve o banco inteiro (base64) para o site guardar no cofre."""
+    return {
+        "dados": base64.b64encode(backup.exportar()).decode("ascii"),
+        "estatisticas": backup.estatisticas(),
+    }
+
+
+@app.post("/api/backup/import")
+def backup_import(payload: CofreRecebido) -> dict:
+    """Restaura o banco a partir de uma cópia guardada no cofre."""
+    try:
+        dados = base64.b64decode(payload.dados, validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Cópia inválida (base64).")
+    try:
+        backup.importar(dados)
+    except ValueError as erro:
+        raise HTTPException(status_code=400, detail=str(erro))
+    return {"ok": True, "restaurado": backup.estatisticas()}
+
+
+@app.get("/api/backup/status")
+def backup_status() -> dict:
+    """Diz se o banco está vazio (sinal de que houve reinício)."""
+    return {"vazio": backup.banco_vazio(), "estatisticas": backup.estatisticas()}
 
 
 # ------------------------------------------------ servir o site (deploy)

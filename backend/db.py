@@ -1,11 +1,12 @@
 """Camada de persistência: conversas, mensagens e memórias (SQLite)."""
 
 import json
+import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "chat.db"
+DB_PATH = Path(os.getenv("NEBULA_DB_PATH", str(Path(__file__).parent / "chat.db")))
 
 
 def _now() -> str:

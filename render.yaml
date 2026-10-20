@@ -19,6 +19,8 @@ services:
     envVars:
       - key: WORKSPACE_DIR
         value: /tmp/nebula/workspace
+      - key: NEBULA_DB_PATH
+        value: /tmp/nebula/chat.db
       - key: AGENT_SCRATCH_DIR
         value: /tmp/nebula/scratch
       - key: CORS_ORIGIN_REGEX

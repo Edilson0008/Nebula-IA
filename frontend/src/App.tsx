@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, StreamError, getGeminiKeyValue } from "./api";
 import { ApiKeyGate } from "./components/ApiKeyGate";
+import { guardarCofre, sincronizar } from "./cofre";
 import type {
   ApprovalRequest,
   Attachment,
@@ -132,6 +133,25 @@ export default function App() {
     void refreshConversations();
   }, [refreshConversations]);
 
+  // Cofre: mantém uma cópia das conversas no aparelho. Se o servidor grátis
+  // reiniciar e perder tudo, a cópia é devolvida automaticamente.
+  useEffect(() => {
+    let ativo = true;
+    (async () => {
+      try {
+        const r = await sincronizar();
+        if (!ativo) return;
+        if (r.acao === "enviou") {
+          await refreshConversations();
+        }
+      } catch {
+        /* servidor fora do ar: tenta de novo na próxima abertura */
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [refreshConversations]);
   const handleNew = () => {
     setActiveId(null);
     setMessages([]);
@@ -373,6 +393,9 @@ export default function App() {
       abortRef.current = null;
       setSending(false);
       setStage(null);
+      // Guarda a cópia no aparelho logo após a resposta (protege do reinício
+      // do servidor grátis). Não trava a interface.
+      void guardarCofre();
     }
   };
 
@@ -458,6 +481,9 @@ export default function App() {
       abortRef.current = null;
       setSending(false);
       setStage(null);
+      // Guarda a cópia no aparelho logo após a resposta (protege do reinício
+      // do servidor grátis). Não trava a interface.
+      void guardarCofre();
     }
   };
 
@@ -548,6 +574,9 @@ export default function App() {
       abortRef.current = null;
       setSending(false);
       setStage(null);
+      // Guarda a cópia no aparelho logo após a resposta (protege do reinício
+      // do servidor grátis). Não trava a interface.
+      void guardarCofre();
     }
   };
 

@@ -25,6 +25,7 @@ COPY backend/ ./
 COPY --from=web /web/dist ./static
 
 ENV WORKSPACE_DIR=/data/workspace
+ENV NEBULA_DB_PATH=/data/chat.db
 ENV AGENT_SCRATCH_DIR=/tmp/nebula
 ENV AGENT_DOWNLOAD_DIR=/tmp/nebula/downloads
 ENV AGENT_APK_DIR=/tmp/nebula/apks
@@ -32,4 +33,4 @@ ENV FRONTEND_DIST=/app/static
 ENV PORT=8000
 EXPOSE 8000
 
-CMD ["sh", "-c", "mkdir -p /data/workspace /tmp/nebula && uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "mkdir -p /data/workspace /data /tmp/nebula && uvicorn main:app --host 0.0.0.0 --port ${PORT}"]

@@ -1,4 +1,7 @@
+import { useCallback, useEffect, useState } from "react";
+
 import { IconClose, IconSpeaker, IconSparkle } from "../icons";
+import { lerCofre, guardarCofre, apagarCofre, type CofreSalvo } from "../cofre";
 import { updateSettings, useSettings } from "../settings";
 import { speakText } from "../voice";
 
@@ -9,13 +12,44 @@ interface SettingsOverlayProps {
 
 /**
  * Painel de Ajustes: personalidade da Nébula (nome, tom, tamanho das
- * respostas) e voz (falar as respostas). Tudo salvo no aparelho e enviado
- * a cada mensagem.
+ * respostas), voz (falar as respostas) e a cópia das conversas no aparelho.
+ * Tudo salvo no aparelho e enviado a cada mensagem.
  */
 export function SettingsOverlay({ open, onClose }: SettingsOverlayProps) {
   const settings = useSettings();
+  const [cofre, setCofre] = useState<CofreSalvo | null>(null);
+  const [salvando, setSalvando] = useState(false);
+
+  const lerEstado = useCallback(async () => {
+    try {
+      setCofre(await lerCofre());
+    } catch {
+      setCofre(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open) void lerEstado();
+  }, [open, lerEstado]);
 
   if (!open) return null;
+
+  const salvarAgora = async () => {
+    setSalvando(true);
+    try {
+      setCofre(await guardarCofre());
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const quando = (ms: number) =>
+    new Date(ms).toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   const inputClass =
     "w-full rounded-xl bg-zinc-100 px-3 py-2.5 text-sm text-zinc-800 " +
@@ -239,6 +273,50 @@ export function SettingsOverlay({ open, onClose }: SettingsOverlayProps) {
             <span className="text-right text-xs text-zinc-400">
               Usa a voz do próprio celular (pt-BR).
             </span>
+          </div>
+        </section>
+
+        {/* -------------------------------------------- conversas salvas */}
+        <section className="mt-5">
+          <h3 className={sectionTitle}>Conversas salvas</h3>
+
+          <div
+            className="rounded-xl bg-zinc-100 p-3 text-sm
+              dark:bg-zinc-800"
+          >
+            <p className="text-zinc-600 dark:text-zinc-300">
+              O histórico fica guardado <strong>também neste aparelho</strong>.
+              Se o servidor reiniciar e esquecer tudo, a cópia daqui devolve
+              suas conversas automaticamente.
+            </p>
+
+            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              {cofre
+                ? `Cópia de ${quando(cofre.salvoEm)} — ${cofre.conversas} conversa(s), ${cofre.memorias} memória(s).`
+                : "Ainda não há cópia neste aparelho."}
+            </p>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={salvarAgora}
+                disabled={salvando}
+                className="rounded-full bg-zinc-200 px-4 py-2 text-sm font-medium
+                  text-zinc-700 transition hover:bg-zinc-300 disabled:opacity-50
+                  dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+              >
+                {salvando ? "Salvando..." : "Salvar cópia agora"}
+              </button>
+              <button
+                onClick={async () => {
+                  await apagarCofre();
+                  setCofre(null);
+                }}
+                className="rounded-full px-4 py-2 text-sm font-medium text-red-600
+                  transition hover:bg-red-50 dark:hover:bg-red-950/40"
+              >
+                Apagar cópia do aparelho
+              </button>
+            </div>
           </div>
         </section>
       </div>
