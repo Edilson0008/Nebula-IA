@@ -7,7 +7,7 @@ name: APK da Nébula
 #   - a cada push que mexa em app-android/ (na branch main)
 #   - na mão, pelo botão "Run workflow" na aba Actions
 #
-# O APK sai em: repositório -> Releases -> "Nébula (mais recente)".
+# O APK sai em: repositório -> Releases -> "Nébula — APK (mais recente)".
 # Link fixo de download (sempre a versão mais nova):
 #   https://github.com/Edilson0008/Nebula-IA/releases/latest/download/nebula.apk
 
@@ -35,8 +35,16 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Preparar o Android SDK
-        uses: android-actions/setup-android@v3
+      # O runner do GitHub já vem com o Android SDK instalado. Em vez de
+      # instalar de novo (que estava falhando), usamos o que já existe e
+      # aceitamos as licenças.
+      - name: Preparar o Android SDK (o que já vem no runner)
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          echo "sdk em: $ANDROID_SDK_ROOT"
+          ls "$ANDROID_SDK_ROOT/platforms" || true
 
       - name: Deixar o gradlew executável
         run: chmod +x app-android/gradlew
