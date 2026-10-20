@@ -140,33 +140,43 @@ def _design_rules(offline: bool, fotos: list[dict] | None = None) -> str:
         if offline
         else
         "3. MÍDIA E IMAGENS — regras obrigatórias:\n"
-        "   - NUNCA invente URL de imagem nem link aleatório da internet, e NUNCA\n"
-        "     use um serviço de imagem dinâmica por termo (picsum, source.unsplash,\n"
-        "     placehold.co, loremflickr): esses endereços quebram e deixam a página\n"
-        "     com imagem vazia. URL de imagem só sai da lista abaixo.\n"
+        "   - FOTO REAL É OBRIGATÓRIA. Um site de comida, produto, lugar, pessoa ou\n"
+        "     animal SEM foto real parece amador e o cliente não aceita. Seu trabalho\n"
+        "     é colocar foto de verdade em cada bloco que pede imagem (hero, cards de\n"
+        "     produto/prato, galeria, seções de assunto). SVG/CSS NÃO substitui foto\n"
+        "     de comida/produto: só entra onde não existe foto possível (ícone, ornamento).\n"
+        "   - VOCÊ TEM UMA FERRAMENTA QUE BUSCA FOTOS REAIS. Chame `imagens` com o tema\n"
+        "     (ex.: tema=\"hambúrguer\", tema=\"pizza\", tema=\"sobremesa\") SEMPRE que o site\n"
+        "     precisar de foto — UMA CHAMADA POR ASSUNTO. Ela devolve URLs de fotos reais\n"
+        "     e livres (Openverse/Wikimedia). NÃO presuma que não vai achar: CHAME. Use\n"
+        "     as URLs que ela devolver, copiando a URL EXATA, cada foto na seção do seu\n"
+        "     assunto (o título da foto diz do que ela é).\n"
+        "   - PROIBIDO dizer que 'só pode usar imagens licenciadas', que 'não consegue\n"
+        "     buscar imagens' ou pedir para o usuário pegar foto em Unsplash/Pexels. É\n"
+        "     FALSO e não é sua função: a ferramenta `imagens` já traz fotos de licença\n"
+        "     livre — você só precisa chamá-la e usar o resultado.\n"
+        "   - NUNCA invente URL de imagem nem use serviço de imagem dinâmica por termo\n"
+        "     (picsum, source.unsplash, placehold.co, loremflickr): quebram a página.\n"
+        "     URL de imagem só sai da lista FOTOS REAIS ou da ferramenta `imagens`.\n"
         "   - ÍCONES: nunca use <img> para ícone. Use Lucide (ou FontAwesome) via CDN\n"
         "     ou SVG inline; ícone é sempre traço/vetor, nunca foto.\n"
-        "   - Cada imagem tem de corresponder ESTRITAMENTE ao assunto específico do\n"
-        "     bloco/seção onde ela entra. Card de leão → foto de leão; card de\n"
-        "     tecnologia → foto de computador/código. Se a foto não for daquilo,\n"
-        "     NÃO use: é melhor ilustrar o bloco em SVG/CSS.\n"
-        "   - Blocos com assuntos DIFERENTES entre si (um card para cada animal:\n"
-        "     leão, elefante, tigre…; um card por produto): a lista de fotos abaixo\n"
-        "     pode não cobrir cada um. Antes de escrever o código, chame a ferramenta\n"
-        "     `imagens` UMA VEZ POR ASSUNTO (tema=\"leão\", tema=\"elefante\"…) e use a\n"
-        "     foto certa em cada bloco. Nunca reaproveite a foto de um assunto no card\n"
-        "     de outro.\n"
-        "   - Use SOMENTE as URLs da lista FOTOS REAIS (Openverse + Wikimedia\n"
-        "     Commons, licença livre). Copie a URL EXATA, uma foto por seção, sem repetir a mesma foto.\n"
-        "     Faltou foto para um item? Deixe esse item em SVG/CSS — repetir a MESMA\n"
-        "     foto, ou usar uma fora do contexto, é pior que não ter foto ali.\n"
+        "   - Cada imagem tem de corresponder ao assunto do bloco onde entra. Card de\n"
+        "     hambúrguer → foto de hambúrguer; card de pizza → foto de pizza. Se a lista\n"
+        "     não cobrir um item, chame `imagens` com o tema daquele item. Só se a\n"
+        "     ferramenta realmente devolver nada para aquele assunto, aí sim ilustre\n"
+        "     aquele bloco em SVG/CSS (nunca repetindo a foto de outro assunto).\n"
+        "   - Blocos com assuntos DIFERENTES entre si (um card para cada prato/produto):\n"
+        "     chame `imagens` UMA VEZ POR ASSUNTO (tema=\"hambúrguer\", tema=\"batata\",\n"
+        "     tema=\"milkshake\"…) e use a foto certa em cada bloco. Nunca reaproveite a\n"
+        "     foto de um assunto no card de outro.\n"
+        "   - Use SOMENTE as URLs da lista FOTOS REAIS e das chamadas de `imagens`\n"
+        "     (Openverse + Wikimedia Commons, licença livre). Copie a URL EXATA, uma\n"
+        "     foto por seção, sem repetir a mesma foto.\n"
         "   - Toda <img> leva classes w-full h-48 object-cover rounded-xl (ou o\n"
         "     tamanho que a seção pedir, sempre com object-cover e raio), alt\n"
         "     descritivo e coerente em PORTUGUÊS (dizendo o que a foto mostra\n"
         "     naquele item), loading=\"lazy\", width/height; onerror esconde a foto e\n"
         "     mostra um fundo CSS/SVG.\n"
-        "   - Se a lista não vier (ou nenhuma foto combinar), use SVG/CSS inline:\n"
-        "     melhor sem foto do que com foto genérica ou desconexa.\n"
     )
     identity = (
         "6. Identidade própria: paleta, tipografia e raios declarados em variáveis CSS\n"
@@ -211,24 +221,28 @@ def _design_rules(offline: bool, fotos: list[dict] | None = None) -> str:
             "Cada foto é de UM assunto — coloque cada uma só na seção cujo texto\n"
             "fala DAQUELE assunto (o nome diz do que é a foto):\n"
             + "".join(f"- {foto['url']} — {foto['titulo']}\n" for foto in fotos)
-            + "Não repita foto e não encaixe foto que não bate com o item. O que\n"
-            "sobrar sem foto combinando vira SVG/CSS.\n"
+            + "Use estas fotos de verdade nos blocos de imagem (hero, cards, galeria).\n"
+            "Se faltar foto para algum item específico, chame `imagens` com o tema\n"
+            "daquele item antes de desistir. Não repita foto. Só o que realmente não\n"
+            "tiver foto possível vira SVG/CSS.\n"
         )
     else:
         regras += (
-            "\n\nSEM LISTA DE FOTOS NESTE PEDIDO: se um bloco precisa da imagem de um\n"
-            "assunto específico (leão, pizza, prato, produto, pessoa), NÃO desista,\n"
-            "NÃO use quadrado cinza nem URL genérica:\n"
-            "1. Antes de responder, chame a ferramenta `imagens` com o tema do bloco\n"
-            "   (ex.: tema=\"leão\", tema=\"pizza\") e use as URLs que ela devolver em\n"
-            "   <img> — cada URL só no bloco do assunto dela.\n"
-            "2. Se ela devolver URLs, use-as com alt descritivo em pt-BR.\n"
-            "3. Só se a ferramenta não tiver nada daquele assunto, caia para SVG/CSS\n"
-            "   bem desenhado (nunca um retângulo vazio nem foto fora do contexto).\n"
-            "PROIBIDO dizer que você \"não consegue gerar ou buscar imagens\" (é falso:\n"
-            "a ferramenta `imagens` existe) e PROIBIDO usar URL dinâmica de banco de\n"
-            "imagens (picsum, source.unsplash, placehold.co) ou mandar o usuário buscar\n"
-            "foto em Unsplash/Pexels — resolva você mesmo com URLs que existem.\n"
+            "\n\nFOTOS: nenhuma foto veio pronta neste pedido, então VOCÊ PRECISA\n"
+            "BUSCAR. Não entregue um site sobre comida/produto/lugar/pessoa/animal\n"
+            "sem foto real — chame a ferramenta `imagens` ANTES de escrever o código:\n"
+            "1. Identifique os assuntos do site e chame `imagens` UMA VEZ POR ASSUNTO\n"
+            "   (site de hamburgueria → tema=\"hambúrguer\", tema=\"batata frita\",\n"
+            "   tema=\"milkshake\", tema=\"hamburgueria\"). Ela devolve URLs reais e livres.\n"
+            "2. Use essas URLs em <img>, cada foto no bloco do assunto dela, com alt\n"
+            "   descritivo em pt-BR.\n"
+            "3. PROIBIDO dizer que não consegue buscar imagens ou que só pode usar\n"
+            "   licenciadas — a ferramenta existe e devolve fotos de licença livre.\n"
+            "4. SVG/CSS só para ícone, ornamento ou para um assunto que a ferramenta\n"
+            "   realmente não tenha (nunca um retângulo vazio nem foto fora do contexto).\n"
+            "PROIBIDO usar URL dinâmica de banco de imagens (picsum, source.unsplash,\n"
+            "placehold.co) ou mandar o usuário buscar foto em Unsplash/Pexels —\n"
+            "resolva você mesmo com URLs que existem.\n"
         )
     # Manual de agência (destilado de 300+ agentes especialistas da biblioteca
     # guias/): entra em todo pedido de build e é o que leva o acabamento do
@@ -1047,7 +1061,15 @@ _TEMA_STOP = re.compile(
     r"crie|criar|cria|fa[çc]a|fazer|mont[ae]|montar|desenvolv[ae]|"
     r"por favor|agora|depois|completo|simples|"
     r"um|uma|uns|umas|o|a|os|as|de|do|da|dos|das|para|pra|com|sem|sobre|"
-    r"que|e|em|no|na|meu|minha|nosso|nossa|quero|gostaria|preciso)\b"
+    r"que|e|em|no|na|meu|minha|nosso|nossa|quero|gostaria|preciso|"
+    # Verbos de comando que escapavam (o "faz lanchonete" virava termo de busca
+    # e o Openverse devolvia "Viajando na maionese"): marca de pedido, não tema.
+    r"faz|fa[çc]o|fiz|manda|mandar|envia|enviar|queria|gostaria|"
+    # Adjetivos de marketing/qualidade: não têm foto. "hamburgueria artesanal"
+    # buscava "Centro de Visitantes Paineiras"; "reais" buscava qualquer coisa.
+    r"real|reais|verdadeir[oa]|artesanal|caseir[oa]|delicios[oa]|gostos[oa]|"
+    r"incr[íi]vel|maravilhos[oa]|melhor|top|premium|exclusiv[oa]|"
+    r"r[áa]pid[oa]|f[áa]cil|limpo|elegante|criativ[oa]|diferente|diferentes)\b"
 )
 
 
@@ -1074,7 +1096,10 @@ def _tema_do_pedido(message: str) -> str:
     # Segunda passada: se sobrou um par Capitalizado, provavelmente é a marca.
     tema = " ".join(palavras[:6])
     tema = _MARCA_CAPS.sub(" ", tema)
-    palavras = [p for p in tema.split() if len(p) > 2][:6]
+    # Para BUSCA de foto, menos é mais: 3 palavras já descrevem o assunto e o
+    # resto só atrapalha o Openverse. "hamburgueria artesanal do bairro" virava
+    # termo comprido e trazia foto errada; "hamburgueria" traz hamburgueria.
+    palavras = [p for p in tema.split() if len(p) > 2][:3]
     return " ".join(palavras) or (message or "").strip()[:60]
 
 

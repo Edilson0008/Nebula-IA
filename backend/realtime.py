@@ -902,16 +902,19 @@ def imagens(termo: str, quantidade: int = 6) -> str:
     itens = fotos(termo, quantidade)
     if not itens:
         return (
-            f"Sem fotos boas para «{termo}». "
-            "Use ilustração em SVG/CSS inline — não invente URL de imagem."
+            f"Sem fotos para «{termo}» nesta busca. Tente um termo mais simples e "
+            "concreto (o substantivo do produto/lugar/bicho, sem adjetivo). Foto "
+            "real é o que o cliente espera: só caia para SVG/CSS se, mesmo com o "
+            "termo simples, não houver foto — e nunca invente URL de imagem."
         )
     linhas = [f"Fotos reais para «{termo}» (uso livre):"]
     linhas.extend(
         f"{i}. {item['url']} — {item['titulo']}" for i, item in enumerate(itens, 1)
     )
     linhas.append(
-        "Use SOMENTE estas URLs em <img>, com alt descritivo em português. "
-        "Se alguma não combinar com a seção, prefira SVG/CSS a usá-la fora de contexto."
+        "Use estas URLs em <img>, com alt descritivo em português — cada foto no "
+        "bloco do assunto dela. Prefira a foto real; só use SVG/CSS para um item "
+        "que não combine com nenhuma delas."
     )
     return _clip("\n".join(linhas))
 
