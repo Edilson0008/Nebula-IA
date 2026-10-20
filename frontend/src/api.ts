@@ -28,6 +28,8 @@ export interface Message {
   attachments?: Attachment[];
   /** Fontes citadas pela IA quando ela consultou a web. */
   sources?: Source[];
+  /** Entrevista de criação (etapas com opções) presa a esta mensagem. */
+  entrevista?: Entrevista;
 }
 
 /** Projeto gerado (pasta de arquivos) — card da biblioteca. */
@@ -95,6 +97,23 @@ export interface ApprovalRequest {
   reason: string;
 }
 
+/** Uma etapa da entrevista de criação (evento "entrevista"). */
+export interface EntrevistaEtapa {
+  id: string;
+  pergunta: string;
+  /** true = pode marcar várias opções; false/ausente = escolhe uma só. */
+  multi?: boolean;
+  /** true = além das opções, o usuário pode digitar algo próprio. */
+  livre?: boolean;
+  opcoes: string[];
+}
+
+export interface Entrevista {
+  tipo: string;
+  assunto: string;
+  etapas: EntrevistaEtapa[];
+}
+
 export interface StreamHandlers {
   onMeta?: (conversationId: number) => void;
   onDelta?: (text: string) => void;
@@ -108,6 +127,8 @@ export interface StreamHandlers {
   onApproval?: (request: ApprovalRequest) => void;
   /** Fontes da busca na web (chega antes do "done"). */
   onSources?: (sources: Source[]) => void;
+  /** Entrevista de criação: etapas com opções clicáveis (site/app/loja…). */
+  onEntrevista?: (entrevista: Entrevista) => void;
   /** Cópia do banco (chega no fim): o site guarda no aparelho. */
   onCofre?: (dados: string) => void;
   onDone?: () => void;
@@ -152,6 +173,7 @@ type StreamEvent =
     }
   | { type: "approval"; id: string; command: string; reason: string }
   | { type: "delta"; text: string }
+  | { type: "entrevista"; tipo: string; assunto: string; etapas: EntrevistaEtapa[] }
   | { type: "sources"; sources: Source[] }
   | { type: "files"; files: FileInfo[]; project: string | null }
   | { type: "error"; message: string; kind?: ErrorKind }
@@ -316,6 +338,12 @@ async function chatStream(
           reason: event.reason,
         });
       else if (event.type === "delta") handlers.onDelta?.(event.text);
+      else if (event.type === "entrevista")
+        handlers.onEntrevista?.({
+          tipo: event.tipo,
+          assunto: event.assunto,
+          etapas: event.etapas,
+        });
       else if (event.type === "sources") handlers.onSources?.(event.sources);
       else if (event.type === "files")
         handlers.onFiles?.(event.files, event.project);

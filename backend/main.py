@@ -53,6 +53,7 @@ import backup
 import cf_image
 import db_supabase as db
 import design_guide
+import entrevista
 import memory
 import planejar
 import pollinations
@@ -1975,14 +1976,15 @@ def chat_stream(req: ChatRequest, request: Request, cliente: "GeminiClient | Non
             },
         )
 
-    # Pedido VAGO de site/app/loja: a Nébula PERGUNTA antes de criar.
+    # Pedido VAGO de site/app/loja: a Nébula ENTREVISTA antes de criar.
     #
     # Por que no código e não no prompt: instruir o modelo a "perguntar quando
     # for vago" não garante nada — ele pode sair criando (pior ainda com o
     # Gemini instável, que responde com pressa). Aqui é determinístico: pedido
-    # curto de criar site/app, sem nenhum detalhe (cor, seção, contato, tipo de
-    # negócio), devolve as perguntas direto, sem chamar o modelo. Quando o
-    # usuário responde, a mensagem já vem com detalhes e cai no fluxo normal.
+    # curto de criar site/app, sem nenhum detalhe, abre a entrevista direto,
+    # sem chamar o modelo. E a entrevista é INTERATIVA: uma etapa por vez, com
+    # opções clicáveis (uma ou várias) — pedir tudo em texto corrido cansava e
+    # vinha sempre igual. Quando o usuário responde, cai no fluxo normal.
     if (
         not req.regenerate
         and req.edit_message_id is None
@@ -1990,7 +1992,8 @@ def chat_stream(req: ChatRequest, request: Request, cliente: "GeminiClient | Non
         and message.strip()
         and planejar.deve_perguntar(message)
     ):
-        pergunta = planejar.resposta_ao_usuario(message)
+        passos = entrevista.etapas(message)
+        pergunta = entrevista.intro(message)
         if not ja_salva:
             db.add_message(conversation_id, "user", message, None)
         db.add_message(conversation_id, "model", pergunta)
@@ -1998,6 +2001,15 @@ def chat_stream(req: ChatRequest, request: Request, cliente: "GeminiClient | Non
         def _planejar_stream() -> Iterator[str]:
             yield _sse({"type": "meta", "conversation_id": conversation_id})
             yield _sse({"type": "delta", "text": pergunta})
+            # O frontend desenha a entrevista: uma etapa por vez, com botões.
+            yield _sse(
+                {
+                    "type": "entrevista",
+                    "tipo": entrevista.tipo_do_pedido(message),
+                    "assunto": message,
+                    "etapas": passos,
+                }
+            )
             yield _sse({"type": "done", "model": None})
 
         return StreamingResponse(

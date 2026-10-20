@@ -12,6 +12,7 @@ import { parseSegments } from "../segments";
 import { stopSpeaking, toggleSpeak, useSpeaking } from "../voice";
 import { Artifact } from "./Artifact";
 import { Composer } from "./Composer";
+import { Entrevista } from "./Entrevista";
 import { Markdown } from "./Markdown";
 import {
   IconCheck,
@@ -223,6 +224,7 @@ export function Chat({
                   message={message}
                   project={project}
                   streaming={streaming}
+                  onSend={onSend}
                   onRegenerate={
                     isLast && message.role === "model" && !sending
                       ? onRegenerate
@@ -233,6 +235,8 @@ export function Chat({
                       ? () => onEdit?.(index)
                       : undefined
                   }
+                  isLast={index === messages.length - 1}
+                  sending={sending}
                 />
               );
             })}
@@ -328,14 +332,20 @@ const Bubble = memo(function Bubble({
   message,
   project,
   streaming,
+  onSend,
   onRegenerate,
   onEdit,
+  isLast,
+  sending,
 }: {
   message: Message;
   project: string | null;
   streaming?: boolean;
+  onSend?: (text: string, attachments?: Attachment[], image?: boolean) => void;
   onRegenerate?: () => void;
   onEdit?: () => void;
+  isLast?: boolean;
+  sending?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   // Qual mensagem está na boca da Nébula agora (só ela mostra "Parar").
@@ -482,6 +492,16 @@ const Bubble = memo(function Bubble({
               </a>
             ))}
           </div>
+        )}
+
+        {/* Entrevista de criação: seletor de etapas com opções clicáveis.
+            Só aparece na última resposta e enquanto o usuário não respondeu. */}
+        {!streaming && message.entrevista && isLast && (
+          <Entrevista
+            dados={message.entrevista}
+            onEnviar={(texto) => onSend?.(texto)}
+            enviando={sending}
+          />
         )}
       </div>
     </div>

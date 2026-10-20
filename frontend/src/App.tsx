@@ -384,6 +384,16 @@ export default function App() {
               return next;
             });
           },
+          onEntrevista: (dados) => {
+            if (activeIdRef.current !== targetId) return;
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (!last || last.role !== "model") return prev;
+              next[next.length - 1] = { ...last, entrevista: dados };
+              return next;
+            });
+          },
           // A cópia do banco chega junto com o fim da resposta: salva no
           // aparelho na hora, sem esperar outra requisição.
           onCofre: (dados) => {
