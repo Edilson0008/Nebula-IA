@@ -55,6 +55,7 @@ from pathlib import Path
 import workspace
 import realtime
 import design_guide
+import planejar
 
 # ------------------------------------------------------------------ ajustes
 
@@ -863,6 +864,33 @@ TOOLS: list[dict] = [
             "required": ["acao"],
         },
     },
+    {
+        "name": "planejar",
+        "description": (
+            "Alinha o pedido ANTES de criar site/app/página/loja grande. Use "
+            "SEMPRE que o pedido for grande mas ainda vago (\"faça um site\", "
+            "\"um app pra minha loja\") e você não souber o suficiente para "
+            "acertar de primeira. Devolve perguntas afiadas por tipo de projeto "
+            "para você fazer ao usuário — em vez de supor e entregar algo que "
+            "não era o que ele queria. NÃO use em pedido já detalhado nem em "
+            "ajuste de algo que já existe. tipo=\"site\"|\"app\"|\"loja\"|"
+            "\"portfolio\"|\"landing\"|\"blog\"|\"outro\""
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "tipo": {
+                    "type": "string",
+                    "description": "tipo do projeto (site, app, loja, portfólio, landing, blog, outro)",
+                },
+                "assunto": {
+                    "type": "string",
+                    "description": "o tema/negócio do projeto (ex.: 'hamburgueria', 'clínica odontológica')",
+                },
+            },
+            "required": ["tipo"],
+        },
+    },
 ]
 
 TOOL_LABELS = {
@@ -879,6 +907,7 @@ TOOL_LABELS = {
     "buscar": "Buscando na web",
     "imagens": "Buscando fotos",
     "guia": "Consultando o manual de design",
+    "planejar": "Planejando antes de criar",
 }
 
 
@@ -1202,6 +1231,8 @@ def _detail(name: str, args: dict) -> str:
         return str(args.get("tema", ""))[:120]
     if name == "guia":
         return str(args.get("consulta") or args.get("acao") or "")[:120]
+    if name == "planejar":
+        return str(args.get("assunto") or args.get("tipo") or "")[:120]
     if name in ("ler", "listar", "criar_pasta", "apagar"):
         return str(args.get("caminho", "."))[:160]
     if name == "escrever":
@@ -1404,6 +1435,15 @@ def run(
                         payload = design_guide.ler(str(args.get("consulta") or ""))
                     else:
                         payload = design_guide.buscar(str(args.get("consulta") or ""))
+                    ok = True
+                    note = "ok"
+                elif name == "planejar":
+                    # Só devolve as perguntas a fazer — não cria nada. É o
+                    # "alinhar antes de construir": barato e sem infra.
+                    payload = planejar.perguntas(
+                        str(args.get("tipo") or "outro"),
+                        str(args.get("assunto") or ""),
+                    )
                     ok = True
                     note = "ok"
                 elif name == "listar":
