@@ -128,30 +128,61 @@ def perguntas(tipo: str = "outro", assunto: str = "") -> str:
 
 # --------------------------------------------------- forçar por código
 
-# Detalhe que, se o pedido já trouxer, dispensa a entrevista: cor, seção,
-# preço, público, contato, estilo. Sem nenhum disso, o pedido é "vago".
+# Detalhe que, se o pedido JÁ trouxer, dispensa a entrevista. É o que a
+# entrevista iria perguntar: cor, seção do site, preço, contato, estilo, ou um
+# jeito concreto de vender. Sem nada disso, o pedido é "vago" e a Nébula
+# pergunta antes de criar.
 _JA_TEM_DETALHE = re.compile(
-    r"(?i)\b(azul|vermelh[oa]|verde|preto|branc[oa]|roxo|rosa|dourad[oa]|"
-    r"laranja|amarel[oa]|bege|cinza|gradiente|escuro|claro|"
-    r"in[íi]cio|sobre|servi[çc]os?|galeria|depoimentos?|contato|card[áa]pio|"
-    r"menu|se[çc][õo]es?|banner|rodap[ée]|pre[çc]os?|planos?|"
-    r"whatsapp|telefone|endere[çc]o|e-?mail|instagram|"
-    r"moderno|minimalista|elegante|cl[áa]ssico|jovem|infantil|"
-    r"loja\s+de|est[úu]dio|academia|padaria|barbearia)\b"
+    r"(?i)\b("
+    # cores e estilo visual
+    r"azul|vermelh[oa]|verde|pret[oa]|branc[oa]|roxo|rosa|dourad[oa]|"
+    r"laranja|amarel[oa]|bege|cinza|gradiente|escuro|claro|colorid[oa]|"
+    r"moderno|minimalista|elegante|cl[áa]ssico|jovem|infantil|retr[ôo]|"
+    r"clean|vintage|r[úu]stic[oa]|luxo|simples|sofisticad[oa]|"
+    # seções de um site/app
+    r"in[íi]cio|home|sobre|servi[çc]os?|produtos?|galeria|fotos?|"
+    r"depoimentos?|contatos?|card[áa]pio|menu|se[çc][ãa]o|se[çc][õo]es|"
+    r"banner|rodap[ée]|"
+    r"quem\s+somos|hist[óo]ria|equipe|"
+    r"localiza[çc][ãa]o|hor[áa]rio|hor[áa]rios|"
+    # venda, preço, contato
+    r"pre[çc]os?|planos?|promo[çc][ãa]o|ofertas?|pacotes?|valores?|"
+    r"whatsapp|telefone|celular|endere[çc]o|e-?mail|instagram|facebook|"
+    r"formul[áa]rio|carrinho|pagamento|pix|cart[ãa]o|delivery|entrega|"
+    # tipo de negócio explícito com nome
+    r"chamad[oa]|chama-se|nome\s+[ée]|se\s+chama"
+    r")\b"
 )
-# Um pedido muito longo já traz contexto; um curto é vago.
-_VAGO_MAX_CHARS = 120
+# Tamanho a partir do qual o pedido já traz contexto suficiente. Um pedido
+# curto é vago; um longo normalmente já disse o que quer.
+_VAGO_MAX_CHARS = 90
+
+# O pedido é sobre CRIAR um site/app/página? Não exige verbo: "site de
+# sorveteria" sozinho já é um pedido de criação. Exigir o verbo deixava passar
+# justamente os pedidos mais vagos (os que só dizem o assunto).
+_PEDIDO_CRIAR = re.compile(
+    r"(?i)\b(site|sites|website|web\s*site|p[áa]gina|p[áa]ginas|landing|"
+    r"one[- ]page|app|aplicativ\w+|loja|e-?commerce|portf[óo]lio|"
+    r"blog|card[áa]pio|sitezinho)\b"
+)
+# Ajuste numa página que já existe: aí a conversa já tem o contexto.
+_AJUSTE = re.compile(
+    r"(?i)\b(mud[ae]|troc[ae]|alter[ae]|atualiz\w*|melhor\w*|corrig\w*|"
+    r"ajust\w*|adicion\w*|acrescent\w*|inclu\w*|coloque|colocar|p[õo]e|"
+    r"refa[çz]\w*|remove|remover|apag\w*)\b"
+)
 
 
 def deve_perguntar(message: str) -> bool:
     """True quando vale PARAR e perguntar antes de criar (forçado por código).
 
-    Regra: pedido de criar site/página/app/loja + curto + sem nenhum detalhe
-    concreto (cor, seção, preço, contato, tipo de negócio) = vago. Nesse caso
-    a Nébula pergunta, em vez de criar às cegas.
+    Regra simples e determinística: o pedido é sobre criar site/página/app/
+    loja E é curto E não traz nenhum detalhe concreto (cor, seção, preço,
+    contato, estilo, nome). Nesse caso a Nébula pergunta em vez de criar às
+    cegas — que é o erro clássico: criar um site genérico e errado.
 
-    NÃO pergunta quando: o pedido é longo/detalhado, ou é ajuste de algo que
-    já existe na conversa (aí a intenção já está clara).
+    NÃO pergunta quando: o pedido já é detalhado, ou é ajuste de algo que já
+    existe na conversa (aí a intenção já está clara).
     """
     texto = (message or "").strip()
     if not texto:
@@ -165,21 +196,6 @@ def deve_perguntar(message: str) -> bool:
     if _AJUSTE.search(texto):
         return False
     return True
-
-
-# "faz/faça/cria/crie/monta/quero/preciso ... site/página/app/loja/..."
-_PEDIDO_CRIAR = re.compile(
-    r"(?i)(\b(fa[çc]a|faz|fazer|cri[ae]|criar|mont[ae]|montar|quero|queria|"
-    r"preciso|gostaria|desenvolv[ae])\b.{0,40}?"
-    r"\b(site|sites|p[áa]gina|p[áa]ginas|landing|website|app|aplicativ\w+|"
-    r"loja|portf[óo]lio|blog|e-?commerce|card[áa]pio)\b)"
-)
-# Ajuste numa página que já existe: aí a conversa já tem o contexto.
-_AJUSTE = re.compile(
-    r"(?i)\b(mud[ae]|troc[ae]|alter[ae]|atualiz\w*|melhor\w*|corrig\w*|"
-    r"ajust\w*|adicion\w*|acrescent\w*|inclu\w*|coloque|colocar|p[õo]e|"
-    r"refa[çz]\w*|remove|remover|apag\w*)\b"
-)
 
 
 def tipo_do_pedido(message: str) -> str:
