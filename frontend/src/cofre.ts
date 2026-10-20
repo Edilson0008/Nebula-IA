@@ -2,15 +2,17 @@
  * Cofre — guarda a cópia das conversas no próprio aparelho.
  *
  * Por que isso existe: o servidor grátis (Render) apaga o disco toda vez que
- * reinicia. Então o histórico não pode morar só lá. O cofre fica no
- * navegador do usuário (IndexedDB, que aguenta arquivos grandes) e faz um
- * "espelho" do banco:
+ * reinicia. Então o histórico não pode morar só lá.
  *
- *   - ao usar o app, ele baixa a cópia mais nova do servidor e guarda aqui;
- *   - quando o servidor volta vazio (reiniciou), ele devolve esta cópia,
- *     recuperando as conversas.
+ * Para não perder nada, guardamos em DOIS lugares do aparelho:
+ *   1. IndexedDB  — aguenta arquivos grandes (é o principal).
+ *   2. localStorage — reserva menor (só o essencial, se o IndexedDB sumir).
  *
- * É automático: o usuário não precisa fazer nada.
+ * E ainda pedimos ao navegador "armazenamento persistente", para ele não
+ * apagar os dados sozinho quando faltar espaço.
+ *
+ * Também dá para BAIXAR um arquivo .nebula com a cópia (você guarda onde
+ * quiser) e RESTAURAR esse arquivo depois. É a salvação garantida.
  */
 
 import { api } from "./api";
@@ -18,6 +20,8 @@ import { api } from "./api";
 const BANCO = "nebula-cofre";
 const LOJA = "copias";
 const VERSAO = 1;
+const CHAVE = "principal";
+const CHAVE_RESERVA = "nebula:cofre-reserva";
 
 export interface CofreSalvo {
   dados: string;
@@ -25,6 +29,19 @@ export interface CofreSalvo {
   conversas: number;
   mensagens: number;
   memorias: number;
+}
+
+/** Pede ao navegador para não apagar os dados deste site. */
+export async function pedirPersistencia(): Promise<boolean> {
+  try {
+    if (navigator.storage?.persist) {
+      if (await navigator.storage.persisted()) return true;
+      return await navigator.storage.persist();
+    }
+  } catch {
+    /* alguns navegadores não têm: segue sem */
+  }
+  return false;
 }
 
 function abrir(): Promise<IDBDatabase> {
@@ -62,13 +79,28 @@ async function ler<T>(chave: string): Promise<T | null> {
   return valor;
 }
 
-const CHAVE = "principal";
-
-export function lerCofre(): Promise<CofreSalvo | null> {
-  return ler<CofreSalvo>(CHAVE);
+export async function lerCofre(): Promise<CofreSalvo | null> {
+  // Tenta o principal (IndexedDB) e, se falhar, a reserva (localStorage).
+  try {
+    const principal = await ler<CofreSalvo>(CHAVE);
+    if (principal?.dados) return principal;
+  } catch {
+    /* IndexedDB indisponível: tenta a reserva */
+  }
+  try {
+    const bruto = localStorage.getItem(CHAVE_RESERVA);
+    if (bruto) return JSON.parse(bruto) as CofreSalvo;
+  } catch {
+    /* nada guardado */
+  }
+  return null;
 }
 
-/** Guarda a cópia atual do servidor no cofre do aparelho. */
+/**
+ * Guarda a cópia atual do servidor no aparelho.
+ * Salva nos dois lugares: IndexedDB (principal) e localStorage (reserva,
+ * se couber — o localStorage tem limite de ~5 MB).
+ */
 export async function guardarCofre(): Promise<CofreSalvo | null> {
   try {
     const { dados, estatisticas } = await api.backupExport();
@@ -79,7 +111,22 @@ export async function guardarCofre(): Promise<CofreSalvo | null> {
       mensagens: estatisticas.mensagens,
       memorias: estatisticas.memorias,
     };
-    await gravar(CHAVE, salvo);
+
+    // 1) Principal: IndexedDB (aguenta tamanho grande).
+    try {
+      await gravar(CHAVE, salvo);
+    } catch {
+      /* segue para a reserva */
+    }
+
+    // 2) Reserva: localStorage, só se o dado couber (senão o navegador
+    //    lança QuotaExceededError e a cópia principal continua valendo).
+    try {
+      localStorage.setItem(CHAVE_RESERVA, JSON.stringify(salvo));
+    } catch {
+      /* grande demais para a reserva: tudo bem, o principal já foi salvo */
+    }
+
     return salvo;
   } catch {
     return null;
@@ -98,6 +145,8 @@ export interface ResultadoSincronia {
  * - Servidor com dados                -> atualiza o cofre (baixa).
  */
 export async function sincronizar(): Promise<ResultadoSincronia> {
+  await pedirPersistencia();
+
   const status = await api.backupStatus();
   const cofre = await lerCofre();
 
@@ -118,14 +167,63 @@ export async function sincronizar(): Promise<ResultadoSincronia> {
   return { acao: "nada", conversas: 0 };
 }
 
-/** Apaga a cópia guardada no aparelho (botão de privacidade). */
+/** Apaga as cópias guardadas no aparelho (botão de privacidade). */
 export async function apagarCofre(): Promise<void> {
-  const db = await abrir();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(LOJA, "readwrite");
-    tx.objectStore(LOJA).delete(CHAVE);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  db.close();
+  try {
+    const db = await abrir();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(LOJA, "readwrite");
+      tx.objectStore(LOJA).delete(CHAVE);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  } catch {
+    /* nada a apagar */
+  }
+  try {
+    localStorage.removeItem(CHAVE_RESERVA);
+  } catch {
+    /* nada a apagar */
+  }
+}
+
+/**
+ * Baixa a cópia como arquivo .nebula — para guardar onde quiser
+ * (Drive, cartão SD, enviar para si mesmo). É a salvação garantida.
+ */
+export async function baixarArquivo(): Promise<boolean> {
+  try {
+    const { dados, estatisticas } = await api.backupExport();
+    const conteudo = JSON.stringify({
+      app: "nebula",
+      versao: 1,
+      salvoEm: new Date().toISOString(),
+      estatisticas,
+      dados,
+    });
+    const blob = new Blob([conteudo], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const data = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `nebula-conversas-${data}.nebula`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Restaura a partir do conteúdo de um arquivo .nebula. */
+export async function restaurarArquivo(texto: string): Promise<number> {
+  const obj = JSON.parse(texto) as { app?: string; dados?: string };
+  if (obj.app !== "nebula" || typeof obj.dados !== "string") {
+    throw new Error("Este arquivo não é uma cópia da Nébula.");
+  }
+  const r = await api.backupImport(obj.dados);
+  return r.restaurado.conversas;
 }

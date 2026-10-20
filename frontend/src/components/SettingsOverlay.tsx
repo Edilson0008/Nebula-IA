@@ -1,7 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { IconClose, IconSpeaker, IconSparkle } from "../icons";
-import { lerCofre, guardarCofre, apagarCofre, type CofreSalvo } from "../cofre";
+import {
+  lerCofre,
+  guardarCofre,
+  apagarCofre,
+  baixarArquivo,
+  restaurarArquivo,
+  type CofreSalvo,
+} from "../cofre";
 import { updateSettings, useSettings } from "../settings";
 import { speakText } from "../voice";
 
@@ -19,6 +26,8 @@ export function SettingsOverlay({ open, onClose }: SettingsOverlayProps) {
   const settings = useSettings();
   const [cofre, setCofre] = useState<CofreSalvo | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const arquivoRef = useRef<HTMLInputElement>(null);
 
   const lerEstado = useCallback(async () => {
     try {
@@ -38,8 +47,39 @@ export function SettingsOverlay({ open, onClose }: SettingsOverlayProps) {
     setSalvando(true);
     try {
       setCofre(await guardarCofre());
+      setAviso("Cópia salva neste aparelho.");
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const baixar = async () => {
+    setSalvando(true);
+    try {
+      setAviso(
+        (await baixarArquivo())
+          ? "Arquivo baixado. Guarde-o em local seguro."
+          : "Não consegui baixar o arquivo."
+      );
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const escolherArquivo = () => arquivoRef.current?.click();
+
+  const restaurar = async (file: File) => {
+    setSalvando(true);
+    try {
+      const texto = await file.text();
+      const conversas = await restaurarArquivo(texto);
+      await lerEstado();
+      setAviso(`Restaurado: ${conversas} conversa(s).`);
+    } catch (erro) {
+      setAviso(erro instanceof Error ? erro.message : "Falha ao restaurar.");
+    } finally {
+      setSalvando(false);
+      if (arquivoRef.current) arquivoRef.current.value = "";
     }
   };
 
@@ -304,19 +344,55 @@ export function SettingsOverlay({ open, onClose }: SettingsOverlayProps) {
                   text-zinc-700 transition hover:bg-zinc-300 disabled:opacity-50
                   dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
               >
-                {salvando ? "Salvando..." : "Salvar cópia agora"}
+                {salvando ? "Aguarde..." : "Salvar cópia agora"}
+              </button>
+              <button
+                onClick={baixar}
+                disabled={salvando}
+                className="rounded-full bg-zinc-200 px-4 py-2 text-sm font-medium
+                  text-zinc-700 transition hover:bg-zinc-300 disabled:opacity-50
+                  dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+              >
+                Baixar arquivo
+              </button>
+              <button
+                onClick={escolherArquivo}
+                disabled={salvando}
+                className="rounded-full bg-zinc-200 px-4 py-2 text-sm font-medium
+                  text-zinc-700 transition hover:bg-zinc-300 disabled:opacity-50
+                  dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+              >
+                Restaurar arquivo
               </button>
               <button
                 onClick={async () => {
                   await apagarCofre();
                   setCofre(null);
+                  setAviso("Cópia apagada deste aparelho.");
                 }}
                 className="rounded-full px-4 py-2 text-sm font-medium text-red-600
                   transition hover:bg-red-50 dark:hover:bg-red-950/40"
               >
-                Apagar cópia do aparelho
+                Apagar cópia
               </button>
             </div>
+
+            <input
+              ref={arquivoRef}
+              type="file"
+              accept=".nebula,application/json"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void restaurar(file);
+              }}
+            />
+
+            {aviso && (
+              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                {aviso}
+              </p>
+            )}
           </div>
         </section>
       </div>
