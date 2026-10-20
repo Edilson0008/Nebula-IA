@@ -1010,8 +1010,14 @@ def _ajuste_de_site(message: str) -> bool:
         return True
     # Pedido de mídia sem alvo: precisa MESMO pedir foto/imagem. "reais" sozinho
     # ("os dados são reais?") não cria página nenhuma.
+    # Cuidado com `imagens?`: casa "imagen"/"imagens", mas NÃO "imagem" (a
+    # palavra mais usada!). Por isso o singular vem escrito por inteiro.
     return bool(
-        re.search(r"(?i)\b(imagens?|fotos?|figuras?|fotografias?|ilustra\w*)\b", text)
+        re.search(
+            r"(?i)\b(imagem|imagens|foto|fotos|figura|figuras|"
+            r"fotografia|fotografias|ilustra\w*)\b",
+            text,
+        )
     )
 
 
@@ -1048,7 +1054,7 @@ _TEMA_STOP = re.compile(
     r"que|e|em|no|na|meu|minha|nosso|nossa|quero|gostaria|preciso|"
     r"site|sites|p[áa]gina|p[áa]ginas|landing|page|web|website|html|css|"
     r"bonit[oa]|modern[oa]|profissional|simples|completo|completa|"
-    r"cards?|planos?|pre[çc]os?|fotos?|imagens?|se[çc][õo]es|depoimentos?|"
+    r"cards?|planos?|pre[çc]os?|fotos?|imagem|imagens|se[çc][õo]es|depoimentos?|"
     r"galeria|layout|contato|servi[çc]os|produtos?|home|hero|menu|"
     r"bairro|card[áa]pio|hor[áa]rios?|agendamento|atua[çc][ãa]o|atua[çc][õo]es|"
     r"[áa]reas?|especialidades?|benef[íi]cios|diferenciais|quem somos|"
