@@ -1,0 +1,30 @@
+# O que NUNCA deve entrar na imagem do servidor.
+#
+# Motivo: o repositório pode ser público e a imagem é construída a partir
+# destes arquivos. Dados pessoais e segredos ficam de fora.
+
+# Banco de conversas (dados privados do usuário)
+backend/chat.db
+backend/*.db
+backend/*.db-*
+backend/*.restore
+
+# Chaves e configuração local
+backend/.env
+backend/.env.*
+.env
+.env.*
+
+# Arquivos gerados e caches
+backend/workspace/
+backend/static/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Dependências e builds locais
+frontend/node_modules/
+frontend/dist/
+node_modules/
+dist/
+.git/
