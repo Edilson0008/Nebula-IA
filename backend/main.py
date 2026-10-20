@@ -354,7 +354,14 @@ _AGENT_TRIGGER = re.compile(
     r"pastas?|diret[óo]rio\w*|arquivos?|pasta[s]?\s+em|downloads?|"
     r"salv\w*|criar?\s+(uma\s+)?pasta|crie\s+(uma\s+)?pasta|"
     r"renome\w*|mov[ae]r?\b|organiz\w*|zip\w*|compact\w*|descompact\w*|"
-    r"apag\w*|exclu\w*|delet\w*)\b"
+    r"apag\w*|exclu\w*|delet\w*|"
+    # Criar site/página/app/loja: sem estes o pedido caía no modo comum e a IA
+    # NUNCA recebia as ferramentas (`planejar`, `imagens`, `escrever`) — ela
+    # saía criando sem perguntar e sem buscar foto. É o gatilho do produto.
+    r"site|sites|p[áa]gina|p[áa]ginas|landing|website|web\s*site|one[- ]page|"
+    r"portf[óo]lio|blog|loja\s+virtual|e-?commerce|card[áa]pio|"
+    r"cri[ae]r?\s+um\s+app|fazer\s+um\s+app|app\s+para|aplicativ\w+|"
+    r"minha\s+loja|meu\s+neg[óo]cio|minha\s+empresa)\b"
 )
 
 AGENT_INSTRUCTIONS = (
