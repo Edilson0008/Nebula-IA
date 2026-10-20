@@ -443,3 +443,41 @@ def intro(message: str) -> str:
         "estas rapidinho, escolhendo as opções. Assim já sai do jeito que você "
         "quer, sem retrabalho."
     )
+
+
+# --------------------------------------------------------- memória da conversa
+#
+# A entrevista precisa VOLTAR quando o usuário recarrega a conversa (ou reabre
+# o app). O evento do stream só existe ao vivo; ao ler do banco a mensagem é
+# texto puro. Então o texto salvo leva um marcador invisível no fim com o tipo
+# e o pedido original — na leitura, o backend reconstrói as etapas e o painel
+# reaparece igual. O marcador é removido antes de mostrar ao usuário.
+
+_MARCA = "\u2063"  # separador invisível (invisible separator), não aparece
+
+
+def com_marca(texto: str, message: str) -> str:
+    """Anexa ao texto o marcador que permite reconstruir a entrevista depois."""
+    tipo = tipo_do_pedido(message)
+    assunto = " ".join((message or "").split())[:300]
+    return f"{texto}{_MARCA}{tipo}{_MARCA}{assunto}"
+
+
+def do_texto_salvo(texto: str) -> tuple[str, dict | None]:
+    """Separa o texto visível da entrevista gravada.
+
+    Devolve ``(texto_limpo, dados_da_entrevista_ou_None)``. Quando não há
+    marcador, devolve o texto intacto e ``None``.
+    """
+    if _MARCA not in (texto or ""):
+        return texto, None
+    partes = texto.split(_MARCA)
+    if len(partes) < 3:
+        return texto, None
+    limpo = _MARCA.join(partes[:-2])
+    tipo, assunto = partes[-2], partes[-1]
+    return limpo, {
+        "tipo": tipo,
+        "assunto": assunto,
+        "etapas": etapas(assunto),
+    }

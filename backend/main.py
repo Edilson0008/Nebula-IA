@@ -1342,8 +1342,15 @@ def _drop_fake_images(text: str) -> str:
 
 
 def _clean_history(messages: list[dict]) -> list[dict]:
-    """Histórico sem links de imagem quebrados (o modelo tende a imitá-los)."""
+    """Histórico sem links de imagem quebrados (o modelo tende a imitá-los).
+
+    Também remove o marcador invisível da entrevista (ele serve para o painel
+    voltar na tela, mas NÃO deve chegar ao modelo — virava ruído no prompt).
+    """
     for item in messages:
+        if entrevista._MARCA in (item.get("content") or ""):
+            limpo, _ = entrevista.do_texto_salvo(item["content"])
+            item["content"] = limpo
         if item.get("role") != "user":
             item["content"] = _drop_fake_images(item.get("content") or "")
     return messages
@@ -1996,7 +2003,10 @@ def chat_stream(req: ChatRequest, request: Request, cliente: "GeminiClient | Non
         pergunta = entrevista.intro(message)
         if not ja_salva:
             db.add_message(conversation_id, "user", message, None)
-        db.add_message(conversation_id, "model", pergunta)
+        # Salva com um marcador invisível: é ele que faz o painel VOLTAR quando
+        # o usuário recarrega a conversa ou reabre o app (o evento do stream só
+        # vale ao vivo). Sem isso, a entrevista sumia ao recarregar.
+        db.add_message(conversation_id, "model", entrevista.com_marca(pergunta, message))
 
         def _planejar_stream() -> Iterator[str]:
             yield _sse({"type": "meta", "conversation_id": conversation_id})
@@ -2235,9 +2245,18 @@ def get_conversation(conversation_id: int) -> dict:
     conversation = db.get_conversation(conversation_id)
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
+    bruto = db.get_messages(conversation_id)
+    # Reconstrói a entrevista ANTES de limpar: o painel de opções precisa
+    # reaparecer quando o usuário recarrega a conversa ou reabre o app (o
+    # marcador invisível guardado no texto é o que permite isso).
+    for item in bruto:
+        if item.get("role") == "model" and entrevista._MARCA in (item.get("content") or ""):
+            _, dados = entrevista.do_texto_salvo(item["content"])
+            if dados:
+                item["entrevista"] = dados
     return {
         "project": conversation.get("project"),
-        "messages": _clean_history(db.get_messages(conversation_id)),
+        "messages": _clean_history(bruto),
     }
 
 
