@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api, StreamError } from "./api";
+import { api, StreamError, getGeminiKeyValue } from "./api";
+import { ApiKeyGate } from "./components/ApiKeyGate";
 import type {
   ApprovalRequest,
   Attachment,
@@ -104,7 +105,8 @@ export default function App() {
     api
       .health()
       .then((health) => {
-        setKeyMissing(!health.api_key_configured);
+        // Só cobra a chave se o usuário ainda não colou a dele.
+        setKeyMissing(!health.api_key_configured && !getGeminiKeyValue());
         setModelName(prettyModel(health.model));
       })
       .catch(() => {
@@ -345,7 +347,14 @@ export default function App() {
         return;
       }
 
-      setError(err instanceof Error ? err.message : "Erro ao enviar mensagem.");
+      const msg = err instanceof Error ? err.message : "Erro ao enviar mensagem.";
+      // Chave ausente/inválida: reabre o portão para a pessoa colar de novo.
+      if (msg.startsWith("chave-api:")) {
+        setKeyMissing(true);
+        setError(msg.replace(/^chave-api:\s*/, ""));
+      } else {
+        setError(msg);
+      }
       setErrorKind(err instanceof StreamError ? err.kind : "error");
       setRetryText(content);
 
@@ -707,6 +716,15 @@ export default function App() {
           onStartCall={startCall}
         />
       </main>
+
+      {keyMissing && (
+        <ApiKeyGate
+          onReady={() => {
+            setKeyMissing(false);
+            setError(null);
+          }}
+        />
+      )}
     </div>
   );
 }

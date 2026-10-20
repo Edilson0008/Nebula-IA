@@ -160,9 +160,37 @@ interface ChatRequestBody {
   image?: boolean;
 }
 
+function getGeminiKey(): string {
+  try {
+    return localStorage.getItem("nebula:gemini-key") || "";
+  } catch {
+    return "";
+  }
+}
+
+export function getGeminiKeyValue(): string {
+  return getGeminiKey();
+}
+
+export function setGeminiKeyValue(key: string): void {
+  try {
+    localStorage.setItem("nebula:gemini-key", key.trim());
+  } catch {}
+}
+
+export function clearGeminiKeyValue(): void {
+  try {
+    localStorage.removeItem("nebula:gemini-key");
+  } catch {}
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const key = getGeminiKey();
+  const headers = new Headers(init?.headers as HeadersInit);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (key) headers.set("X-Gemini-Key", key);
   const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers,
     ...init,
   });
 
@@ -210,9 +238,12 @@ async function chatStream(
     image: image || undefined,
   };
 
+  const key = getGeminiKey();
+  const headers = new Headers({ "Content-Type": "application/json" });
+  if (key) headers.set("X-Gemini-Key", key);
   const res = await fetch("/api/chat/stream", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
 
