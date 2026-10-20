@@ -1,0 +1,27 @@
+# Chaves e segredos
+backend/.env
+backend/.env.local
+*.pem
+*.key
+
+# Dependências
+node_modules/
+frontend/node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Dados locais
+backend/chat.db
+backend/workspace/
+*.log
+
+# Builds
+frontend/dist/
+dist/
+build/
+
+# Sistema
+.DS_Store
+Thumbs.db

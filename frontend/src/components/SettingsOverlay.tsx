@@ -1,0 +1,247 @@
+import { IconClose, IconSpeaker, IconSparkle } from "../icons";
+import { updateSettings, useSettings } from "../settings";
+import { speakText } from "../voice";
+
+interface SettingsOverlayProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+/**
+ * Painel de Ajustes: personalidade da Nébula (nome, tom, tamanho das
+ * respostas) e voz (falar as respostas). Tudo salvo no aparelho e enviado
+ * a cada mensagem.
+ */
+export function SettingsOverlay({ open, onClose }: SettingsOverlayProps) {
+  const settings = useSettings();
+
+  if (!open) return null;
+
+  const inputClass =
+    "w-full rounded-xl bg-zinc-100 px-3 py-2.5 text-sm text-zinc-800 " +
+    "outline-none transition focus:ring-2 focus:ring-blue-500 " +
+    "dark:bg-zinc-800 dark:text-zinc-100";
+  const pill = (active: boolean) =>
+    `rounded-full px-3 py-1.5 text-sm font-medium transition ${
+      active
+        ? "accent-gradient text-white shadow"
+        : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 " +
+          "dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+    }`;
+
+  const sectionTitle =
+    "mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 " +
+    "dark:text-zinc-500";
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-[60] bg-black/50 nebula-fade-in"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Ajustes"
+        className="fixed left-1/2 top-1/2 z-[70] max-h-[85vh] w-[min(94vw,28rem)]
+          -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl
+          border border-zinc-200 bg-white p-5 shadow-xl nebula-scale-in
+          dark:border-zinc-800 dark:bg-zinc-900"
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <IconSparkle className="accent-text h-5 w-5" />
+            <h2 className="text-base font-semibold">Ajustes</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-full p-2 text-zinc-500 transition
+              hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            aria-label="Fechar ajustes"
+          >
+            <IconClose className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* ------------------------------------------------ personalidade */}
+        <section className="mb-5">
+          <h3 className={sectionTitle}>Personalidade</h3>
+
+          <label className="mb-3 block">
+            <span className="mb-1 block text-sm text-zinc-600 dark:text-zinc-300">
+              Como ela se chama
+            </span>
+            <input
+              className={inputClass}
+              value={settings.aiName}
+              maxLength={40}
+              placeholder="Nébula"
+              onChange={(event) => updateSettings({ aiName: event.target.value })}
+            />
+          </label>
+
+          <label className="mb-3 block">
+            <span className="mb-1 block text-sm text-zinc-600 dark:text-zinc-300">
+              Como ela te chama
+            </span>
+            <input
+              className={inputClass}
+              value={settings.userName}
+              maxLength={40}
+              placeholder="seu nome"
+              onChange={(event) =>
+                updateSettings({ userName: event.target.value })
+              }
+            />
+          </label>
+
+          <div className="mb-3">
+            <span className="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-300">
+              Tom
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["direto", "Direto"],
+                  ["", "Normal"],
+                  ["detalhado", "Detalhado"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => updateSettings({ tone: value })}
+                  className={pill(settings.tone === value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-300">
+              Respostas
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["curto", "Curtas"],
+                  ["", "Normais"],
+                  ["longo", "Longas"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => updateSettings({ replySize: value })}
+                  className={pill(settings.replySize === value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ------------------------------------------------------- aparência */}
+        <section className="mb-5">
+          <h3 className={sectionTitle}>Aparência</h3>
+
+          <div className="mb-3">
+            <span className="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-300">
+              Cor de destaque
+            </span>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {(
+                [
+                  ["#3b82f6", "Azul"],
+                  ["#8b5cf6", "Roxo"],
+                  ["#ec4899", "Rosa"],
+                  ["#10b981", "Verde"],
+                  ["#f59e0b", "Laranja"],
+                  ["#ef4444", "Vermelho"],
+                  ["#06b6d4", "Turquesa"],
+                  ["#64748b", "Grafite"],
+                ] as const
+              ).map(([color, label]) => (
+                <button
+                  key={color}
+                  onClick={() => updateSettings({ accent: color })}
+                  title={label}
+                  aria-label={`Cor ${label}`}
+                  style={{ backgroundColor: color }}
+                  className={`h-8 w-8 rounded-full transition nebula-tap ${
+                    settings.accent === color
+                      ? "ring-2 ring-zinc-400 ring-offset-2 ring-offset-white dark:ring-zinc-500 dark:ring-offset-zinc-900"
+                      : "hover:scale-110"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-300">
+              Fundo do chat
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["aurora", "Aurora"],
+                  ["stars", "Estrelas"],
+                  ["clean", "Limpo"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => updateSettings({ bgStyle: value })}
+                  className={pill(settings.bgStyle === value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ------------------------------------------------------------ voz */}
+        <section>
+          <h3 className={sectionTitle}>Voz</h3>
+
+          <label
+            className="mb-3 flex cursor-pointer items-center justify-between
+              rounded-xl bg-zinc-100 px-3 py-2.5 dark:bg-zinc-800"
+          >
+            <span className="text-sm text-zinc-700 dark:text-zinc-200">
+              Ela fala as respostas em voz alta
+            </span>
+            <input
+              type="checkbox"
+              checked={settings.speak}
+              onChange={(event) => updateSettings({ speak: event.target.checked })}
+              className="h-5 w-5 accent-blue-600"
+            />
+          </label>
+
+          <div className="flex items-center justify-between gap-3">
+            <button
+              onClick={() =>
+                speakText("Oi! Eu sou a Nébula. É assim que eu falo.")
+              }
+              className="flex items-center gap-2 rounded-full bg-zinc-100
+                px-4 py-2 text-sm font-medium text-zinc-700 transition
+                hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200
+                dark:hover:bg-zinc-700"
+            >
+              <IconSpeaker className="h-4 w-4" />
+              Testar voz
+            </button>
+            <span className="text-right text-xs text-zinc-400">
+              Usa a voz do próprio celular (pt-BR).
+            </span>
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
