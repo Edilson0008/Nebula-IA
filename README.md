@@ -88,11 +88,20 @@ cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env      # cole sua chave em GEMINI_API_KEY
+cp .env.example .env      # opcional: só os modelos (a chave NÃO vai aqui)
 uvicorn main:app --reload --port 8000
 ```
 
-Chave da API: https://aistudio.google.com/apikey (gratuita com limite de uso)
+**A chave da API não fica no arquivo `.env`.** Na primeira vez que o app abre,
+ele mostra uma tela pedindo a chave — cada pessoa usa a **própria** chave, que
+fica salva só no navegador (localStorage) e viaja no cabeçalho `X-Gemini-Key`.
+Assim o custo é de cada um e nenhuma chave entra no código/Git.
+
+Chave gratuita: https://aistudio.google.com/apikey
+
+> Para rodar **sozinho, sem tela** (ex.: servidor próprio), você pode pôr a
+> chave no `.env` (`GEMINI_API_KEY=...`), mas saiba que ela passa a ser usada
+> como reserva só quando o pedido não traz chave do usuário.
 
 ### 2. Frontend (em outro terminal)
 
