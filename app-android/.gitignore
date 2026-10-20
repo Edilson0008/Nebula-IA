@@ -1,0 +1,15 @@
+# Android / Gradle — o que NÃO vai para o Git.
+# (o APK é compilado e publicado pelo GitHub Actions; não guardamos build aqui)
+
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+.cxx/
+captures/
+*.apk
+*.aab
+*.keystore
+!gradle/wrapper/gradle-wrapper.jar

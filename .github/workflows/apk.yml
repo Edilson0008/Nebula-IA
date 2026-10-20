@@ -1,0 +1,73 @@
+name: APK da Nébula
+
+# Compila o app Android no GitHub (sem precisar de PC nem Android Studio) e
+# publica o APK para download público.
+#
+# Quando roda:
+#   - a cada push que mexa em app-android/ (na branch main)
+#   - na mão, pelo botão "Run workflow" na aba Actions
+#
+# O APK sai em: repositório -> Releases -> "Nébula (mais recente)".
+# Link fixo de download (sempre a versão mais nova):
+#   https://github.com/Edilson0008/Nebula-IA/releases/latest/download/nebula.apk
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app-android/**"
+      - ".github/workflows/apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Preparar o Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Preparar o Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Deixar o gradlew executável
+        run: chmod +x app-android/gradlew
+
+      - name: Compilar o APK
+        working-directory: app-android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Renomear para um nome bonito
+        run: |
+          mkdir -p apk-saida
+          cp app-android/app/build/outputs/apk/debug/app-debug.apk apk-saida/nebula.apk
+
+      - name: Guardar o APK como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: nebula-apk
+          path: apk-saida/nebula.apk
+
+      - name: Publicar como Release (link de download)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: "Nébula — APK (mais recente)"
+          body: |
+            App da Nébula para Android.
+
+            **Instalar:** baixe o arquivo `nebula.apk` abaixo e abra no celular.
+            Se o Android pedir, permita "instalar de fontes desconhecidas".
+
+            Ao abrir, escolha um apelido (separado por pessoa) e cole a sua
+            chave do Gemini. As conversas ficam salvas na sua sala.
+          files: apk-saida/nebula.apk
+          make_latest: true

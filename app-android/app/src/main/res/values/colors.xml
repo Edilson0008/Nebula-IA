@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cor de fundo do app (combina com a nebulosa). -->
+    <color name="nebula_fundo">#0B0B14</color>
+    <color name="nebula_roxo">#7C3AED</color>
+</resources>

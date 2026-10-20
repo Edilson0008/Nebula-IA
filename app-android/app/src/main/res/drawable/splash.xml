@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tela de abertura: fundo escuro com a nebulosa centralizada. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/nebula_fundo" />
+    <item>
+        <bitmap
+            android:src="@drawable/splash_logo"
+            android:gravity="center"
+            android:width="168dp"
+            android:height="168dp" />
+    </item>
+</layer-list>

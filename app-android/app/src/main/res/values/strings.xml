@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nébula</string>
+    <!-- Endereço padrão da Nébula. Se o host mudar de IP, altere aqui e recompile,
+         ou use o menu do app (configurar endereço) que salva a preferência. -->
+    <string name="nebula_url" translatable="false">https://nebula-backend-xi8q.onrender.com</string>
+</resources>

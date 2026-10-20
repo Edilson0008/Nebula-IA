@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.nebula.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.nebula.app"
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        debug {
+            // O endereço do backend da Nébula. Editável sem recompilar código:
+            // está em app/src/main/res/values/strings.xml (nebula_url).
+            resValue "string", "nebula_default_url", "https://nebula-backend-xi8q.onrender.com"
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation ('androidx.webkit:webkit:1.12.1') {
+        // O webkit traz um kotlin-stdlib-jdk8 antigo que colide com o
+        // kotlin-stdlib moderno (classes duplicadas). Fora.
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+    }
+}
+
+// Uma versão só de kotlin-stdlib para todo mundo: sem classes duplicadas.
+configurations.all {
+    resolutionStrategy {
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+    }
+}
