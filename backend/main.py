@@ -2045,6 +2045,19 @@ def chat_stream(req: ChatRequest, request: Request, cliente: "GeminiClient | Non
 
         yield _sse({"type": "done", "model": used_model})
 
+        # Vai junto com o fim da resposta: a cópia COMPLETA do banco agora.
+        # O site guarda no aparelho imediatamente — sem depender de outra
+        # requisição. É o que protege as conversas do reinício do servidor.
+        try:
+            yield _sse(
+                {
+                    "type": "cofre",
+                    "dados": base64.b64encode(backup.exportar()).decode("ascii"),
+                }
+            )
+        except Exception as exc:  # noqa: BLE001 - nunca derruba o stream
+            print(f"[stream] falha ao montar o cofre: {exc}")
+
     return StreamingResponse(
         event_stream(),
         media_type="text/event-stream",

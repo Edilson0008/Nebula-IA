@@ -105,6 +105,8 @@ export interface StreamHandlers {
   onApproval?: (request: ApprovalRequest) => void;
   /** Fontes da busca na web (chega antes do "done"). */
   onSources?: (sources: Source[]) => void;
+  /** Cópia do banco (chega no fim): o site guarda no aparelho. */
+  onCofre?: (dados: string) => void;
   onDone?: () => void;
 }
 
@@ -150,7 +152,8 @@ type StreamEvent =
   | { type: "sources"; sources: Source[] }
   | { type: "files"; files: FileInfo[]; project: string | null }
   | { type: "error"; message: string; kind?: ErrorKind }
-  | { type: "done"; model?: string | null };
+  | { type: "done"; model?: string | null }
+  | { type: "cofre"; dados: string };
 
 interface ChatRequestBody {
   message: string;
@@ -312,6 +315,8 @@ async function chatStream(
       else if (event.type === "done") {
         if (event.model) handlers.onModel?.(event.model);
         handlers.onDone?.();
+      } else if (event.type === "cofre") {
+        handlers.onCofre?.(event.dados);
       } else if (event.type === "error") {
         streamError = { message: event.message, kind: event.kind ?? "error" };
       }

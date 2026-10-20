@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, StreamError, getGeminiKeyValue } from "./api";
 import { ApiKeyGate } from "./components/ApiKeyGate";
-import { guardarCofre, sincronizar } from "./cofre";
+import { guardarCofre, salvarDadosRecebidos, sincronizar } from "./cofre";
 import type {
   ApprovalRequest,
   Attachment,
@@ -374,6 +374,11 @@ export default function App() {
               return next;
             });
           },
+          // A cópia do banco chega junto com o fim da resposta: salva no
+          // aparelho na hora, sem esperar outra requisição.
+          onCofre: (dados) => {
+            void salvarDadosRecebidos(dados);
+          },
         },
         offlineSite,
         attachments,
@@ -482,6 +487,9 @@ export default function App() {
               return next;
             });
           },
+          onCofre: (dados) => {
+            void salvarDadosRecebidos(dados);
+          },
         },
         offlineSite,
         [],
@@ -573,6 +581,9 @@ export default function App() {
               next[next.length - 1] = { ...last, sources };
               return next;
             });
+          },
+          onCofre: (dados) => {
+            void salvarDadosRecebidos(dados);
           },
         },
         offlineSite,

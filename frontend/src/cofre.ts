@@ -139,6 +139,32 @@ export interface ResultadoSincronia {
 }
 
 /**
+ * Guarda uma cópia JÁ RECEBIDA (vem no fim do streaming).
+ * Evita uma segunda requisição e garante que a cópia seja salva no exato
+ * momento em que a resposta termina.
+ */
+export async function salvarDadosRecebidos(dados: string): Promise<void> {
+  if (!dados) return;
+  const salvo: CofreSalvo = {
+    dados,
+    salvoEm: Date.now(),
+    conversas: 0,
+    mensagens: 0,
+    memorias: 0,
+  };
+  try {
+    await gravar(CHAVE, salvo);
+  } catch {
+    /* tenta a reserva */
+  }
+  try {
+    localStorage.setItem(CHAVE_RESERVA, JSON.stringify(salvo));
+  } catch {
+    /* grande demais para a reserva: o principal já foi salvo */
+  }
+}
+
+/**
  * Mantém servidor e cofre iguais. Chamado ao abrir o app.
  *
  * - Servidor vazio + cofre com dados  -> devolve o cofre (restaura).
