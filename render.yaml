@@ -1,0 +1,27 @@
+# Deploy grátis do backend da Nébula no Render (https://render.com).
+#
+# Como usar:
+#   1. Crie uma conta no Render e conecte o repositório do GitHub.
+#   2. New → Blueprint → escolha este repositório.
+#   3. O Render lê este arquivo e sobe sozinho.
+#
+# Nenhuma chave é necessária: cada usuário cola a própria chave do Gemini
+# no app. O servidor só repassa. Por isso ele pode ficar público.
+
+services:
+  - type: web
+    name: nebula-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: WORKSPACE_DIR
+        value: /tmp/nebula/workspace
+      - key: AGENT_SCRATCH_DIR
+        value: /tmp/nebula/scratch
+      - key: CORS_ORIGIN_REGEX
+        value: .*
+      - key: PYTHONUNBUFFERED
+        value: "1"

@@ -83,7 +83,7 @@ JAVA_CANDIDATES = (
     "/usr/lib/jvm/java-17-openjdk-arm64",
 )
 # Onde a IA pode deixar um .apk pronto para download SEM precisar de aprovação.
-APK_DIR = "/sdcard/Download/nebula-apks"
+APK_DIR = os.getenv("AGENT_APK_DIR", "/sdcard/Download/nebula-apks")
 # APK final: o sistema MESMO copia o .apk compilado pra cá, com o nome do
 # projeto — é o arquivo que o usuário instala pelo gerenciador de arquivos,
 # sem precisar caçar dentro da pasta do projeto (e sem acumular APK de teste).

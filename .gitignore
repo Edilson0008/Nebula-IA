@@ -29,3 +29,7 @@ Thumbs.db
 # Backups de .env (nunca versionar)
 backend/.env.*
 .env.bak
+
+# Site compilado (gerado no build/deploy)
+backend/static/
+frontend/dist/

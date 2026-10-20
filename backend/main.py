@@ -44,7 +44,7 @@ _load_env()
 
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -400,9 +400,16 @@ AGENT_INSTRUCTIONS = (
 
 app = FastAPI(title="Nébula API", version="0.2.0")
 
+# CORS: localhost (uso no aparelho) + o que vier em CORS_ORIGINS (no deploy).
+_cors_extra = [
+    origem.strip()
+    for origem in os.getenv("CORS_ORIGINS", "").split(",")
+    if origem.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"] + _cors_extra,
+    allow_origin_regex=os.getenv("CORS_ORIGIN_REGEX", r".*") or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -2145,3 +2152,23 @@ def remove_memory(memory_id: int) -> dict:
     if not db.delete_memory(memory_id):
         raise HTTPException(status_code=404, detail="Memória não encontrada.")
     return {"deleted": memory_id}
+
+
+# ------------------------------------------------ servir o site (deploy)
+# No deploy (Render/Fly) o backend também entrega o frontend compilado, para
+# tudo ficar numa URL só ("entra e usa"), sem CORS e sem dois endereços.
+# Localmente nada muda: o Vite continua servindo a interface em :5173.
+# Ativa só se a pasta do site existir (FRONTEND_DIST ou ./static).
+_DIST = Path(os.getenv("FRONTEND_DIST", str(Path(__file__).parent / "static")))
+if _DIST.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(_DIST / "assets")), name="assets")
+
+    @app.get("/{caminho:path}")
+    def _site(caminho: str):
+        """Entrega o site; rotas do app voltam pro index.html (SPA)."""
+        if caminho.startswith("api/") or caminho.startswith("files/"):
+            raise HTTPException(status_code=404, detail="Não encontrado.")
+        alvo = (_DIST / caminho).resolve()
+        if _DIST.resolve() in alvo.parents and alvo.is_file():
+            return FileResponse(alvo)
+        return FileResponse(_DIST / "index.html")
