@@ -135,6 +135,9 @@ export default function App() {
 
   // Cofre: mantém uma cópia das conversas no aparelho. Se o servidor grátis
   // reiniciar e perder tudo, a cópia é devolvida automaticamente.
+  //
+  // Roda também a cada mudança na lista de conversas, para a cópia nunca
+  // ficar desatualizada (o servidor grátis apaga o disco quando quer).
   useEffect(() => {
     let ativo = true;
     (async () => {
@@ -150,6 +153,27 @@ export default function App() {
     })();
     return () => {
       ativo = false;
+    };
+  }, [refreshConversations]);
+
+  // Vigia do cofre: a cada 30s confere se o servidor ainda tem as conversas.
+  // Se ele reiniciou e voltou vazio, devolve a cópia do aparelho na hora —
+  // o usuário nem percebe a perda.
+  useEffect(() => {
+    let ativo = true;
+    const id = window.setInterval(async () => {
+      try {
+        const r = await sincronizar();
+        if (ativo && r.acao === "enviou") {
+          await refreshConversations();
+        }
+      } catch {
+        /* servidor dormindo: tenta no próximo ciclo */
+      }
+    }, 30000);
+    return () => {
+      ativo = false;
+      window.clearInterval(id);
     };
   }, [refreshConversations]);
   const handleNew = () => {
