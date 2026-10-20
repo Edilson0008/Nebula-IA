@@ -5,8 +5,11 @@
 #   2. New → Blueprint → escolha este repositório.
 #   3. O Render lê este arquivo e sobe sozinho.
 #
-# Nenhuma chave é necessária: cada usuário cola a própria chave do Gemini
-# no app. O servidor só repassa. Por isso ele pode ficar público.
+# As conversas ficam no Supabase (permanentes), então o disco do Render pode
+# ser apagado à vontade. Configure SUPABASE_URL e SUPABASE_KEY no painel do
+# Render (Environment) — os valores saem do painel do Supabase (Settings → API).
+#
+# Nenhuma chave do Gemini vai aqui: cada usuário cola a própria no app.
 
 services:
   - type: web
@@ -19,11 +22,14 @@ services:
     envVars:
       - key: WORKSPACE_DIR
         value: /tmp/nebula/workspace
-      - key: NEBULA_DB_PATH
-        value: /tmp/nebula/chat.db
       - key: AGENT_SCRATCH_DIR
         value: /tmp/nebula/scratch
       - key: CORS_ORIGIN_REGEX
         value: .*
       - key: PYTHONUNBUFFERED
         value: "1"
+      # Preencha no painel do Render (são segredos):
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false

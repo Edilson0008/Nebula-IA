@@ -11,7 +11,7 @@ import math
 import os
 from array import array
 
-import db
+import db_supabase as db
 
 DEFAULT_MIN_SCORE = 0.66
 

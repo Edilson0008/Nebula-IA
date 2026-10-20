@@ -61,6 +61,11 @@ _DEAD_MODEL_MARKERS = (
 # Quantas rodadas completas pela lista de modelos antes de desistir.
 _MAX_ROUNDS = 2
 
+# Quantas vezes tentamos RETOMAR uma resposta cortada no meio (queda de
+# conexão, cota do modelo, instabilidade). Sem isso, um site/código grande
+# ficava pela metade quando o modelo era interrompido no meio da escrita.
+_MAX_CONTINUACOES = 4
+
 # De quanto em quanto tempo vale a pena reprovar um modelo que falhou.
 # Cota diária: só volta à meia-noite (Pacífico); limite por minuto: segundos;
 # instabilidade (503): um minuto; lentidão: alguns minutos. Sem isso o app
@@ -687,9 +692,17 @@ class GeminiClient:
                 on_sources(list(sources))
 
         tentados: set[str] = set()
-        for round_index in range(_MAX_ROUNDS):
+        # Texto já produzido (para retomar de onde parou se a geração cair).
+        partes: list[str] = []
+        continuacoes = 0
+        for round_index in range(_MAX_ROUNDS + _MAX_CONTINUACOES):
             waitable = False
             candidatos = self._live_models(self.models, tentados)
+            if not candidatos and partes:
+                # Já temos texto na tela: libera os modelos de novo para
+                # conseguir RETOMAR em vez de deixar o site pela metade.
+                tentados.clear()
+                candidatos = self._live_models(self.models, tentados)
             if not candidatos:
                 raise RuntimeError(self._cooling_message())
 
@@ -726,14 +739,53 @@ class GeminiClient:
                                 )
                                 if on_model:
                                     on_model(model)
+                            partes.append(text)
                             yield text
                         return
 
                     except Exception as exc:  # noqa: BLE001 - classificamos abaixo
                         last_error = exc
 
-                        # Já mostramos texto: não dá para recomeçar em outro modelo.
+                        # Já mostramos texto: em vez de desistir (e deixar o
+                        # site pela metade), pedimos para o próximo modelo
+                        # CONTINUAR de onde paramos. Vale para cota do modelo,
+                        # instabilidade e queda de conexão.
                         if produced:
+                            # Cota (diária ou por minuto), instabilidade ou
+                            # queda: em qualquer caso, retomar é melhor do que
+                            # entregar o site pela metade.
+                            pode_retomar = (
+                                is_transient(exc)
+                                or is_daily_limit(exc)
+                                or _is_bad_request(exc)
+                            )
+                            if continuacoes < _MAX_CONTINUACOES and pode_retomar:
+                                continuacoes += 1
+                                produzido_antes = "".join(partes)
+                                contents = contents + [
+                                    {
+                                        "role": "model",
+                                        "parts": [{"text": produzido_antes}],
+                                    },
+                                    {
+                                        "role": "user",
+                                        "parts": [
+                                            {
+                                                "text": (
+                                                    "Continue EXATAMENTE de onde parou. "
+                                                    "Não repita nada do que já escreveu e "
+                                                    "não comece de novo: siga direto do "
+                                                    "ponto em que o texto foi cortado."
+                                                )
+                                            }
+                                        ],
+                                    },
+                                ]
+                                print(
+                                    f"[modelo] {model} interrompeu; "
+                                    f"retomando ({continuacoes}/{_MAX_CONTINUACOES})…"
+                                )
+                                break
                             raise
 
                         if search and not search_retried and (

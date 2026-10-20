@@ -11,6 +11,7 @@ import {
 } from "../cofre";
 import { updateSettings, useSettings } from "../settings";
 import { speakText } from "../voice";
+import { definirSala, getSala } from "../sala";
 
 interface SettingsOverlayProps {
   open: boolean;
@@ -27,6 +28,8 @@ export function SettingsOverlay({ open, onClose }: SettingsOverlayProps) {
   const [cofre, setCofre] = useState<CofreSalvo | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState("");
+  const [apelido, setApelido] = useState(() => getSala());
+  const [avisoSala, setAvisoSala] = useState("");
   const arquivoRef = useRef<HTMLInputElement>(null);
 
   const lerEstado = useCallback(async () => {
@@ -137,6 +140,54 @@ export function SettingsOverlay({ open, onClose }: SettingsOverlayProps) {
             <IconClose className="h-5 w-5" />
           </button>
         </div>
+
+        {/* ----------------------------------------------------------- sala */}
+        <section className="mb-5">
+          <h3 className={sectionTitle}>Sua sala</h3>
+          <p className="mb-2 text-sm text-zinc-600 dark:text-zinc-300">
+            As conversas ficam guardadas com este apelido. Quem usar outro
+            apelido vê uma lista diferente.
+          </p>
+          <div className="flex items-stretch gap-2">
+            <input
+              type="text"
+              value={apelido}
+              onChange={(event) => {
+                setApelido(event.target.value);
+                setAvisoSala("");
+              }}
+              autoComplete="off"
+              spellCheck={false}
+              className="min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white
+                px-3 py-2 text-sm text-zinc-800 outline-none
+                focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800
+                dark:text-zinc-100"
+            />
+            <button
+              onClick={() => {
+                const limpo = apelido.trim().toLowerCase();
+                if (!/^[a-z0-9._-]{2,40}$/.test(limpo)) {
+                  setAvisoSala("Use 2 a 40 caracteres: letras, números, . _ -");
+                  return;
+                }
+                definirSala(limpo);
+                setApelido(limpo);
+                setAvisoSala("Apelido salvo. As conversas vão recarregar.");
+                window.setTimeout(() => window.location.reload(), 900);
+              }}
+              className="rounded-xl bg-zinc-200 px-4 text-sm font-medium text-zinc-700
+                transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-200
+                dark:hover:bg-zinc-600"
+            >
+              Salvar
+            </button>
+          </div>
+          {avisoSala && (
+            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              {avisoSala}
+            </p>
+          )}
+        </section>
 
         {/* ------------------------------------------------ personalidade */}
         <section className="mb-5">

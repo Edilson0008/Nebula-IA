@@ -42,7 +42,7 @@ def _load_env() -> None:
 
 _load_env()
 
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Header, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -51,7 +51,7 @@ from pydantic import BaseModel, Field
 import agent
 import backup
 import cf_image
-import db
+import db_supabase as db
 import design_guide
 import memory
 import pollinations
@@ -71,6 +71,19 @@ DEFAULT_SYSTEM_PROMPT = (
     "sugira pedir 'notícias de hoje', 'clima em X' ou 'busca por Y' — nunca "
     "invente data, número ou manchete."
 )
+
+# ---------------------------------------------------------------------------
+# "Sala" da pessoa: cada um vê só as próprias conversas.
+#
+# O site manda o apelido escolhido no cabeçalho X-Nebula-Sala. Sem ele, usa
+# "local" (compatível com quem já usava antes). O apelido é saneado: só letras,
+# números, ponto, hífen e underline.
+# ---------------------------------------------------------------------------
+def _sala(x_nebula_sala: str | None = Header(default=None)) -> str:
+    bruto = (x_nebula_sala or "local").strip().lower()
+    limpo = re.sub(r"[^a-z0-9._-]", "", bruto)[:40]
+    return limpo or "local"
+
 
 FILE_INSTRUCTIONS = (
     "\n\nCRIAÇÃO DE ARQUIVOS:\n"
@@ -415,6 +428,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def _definir_sala(request: Request, call_next):
+    """Guarda a "sala" da pessoa (o apelido) para este pedido.
+
+    O site manda o apelido no cabeçalho X-Nebula-Sala; cada pedido enxerga
+    só os dados daquela sala. Sem o cabeçalho, cai em "local".
+    """
+    db.definir_sala(_sala(request.headers.get("x-nebula-sala")))
+    return await call_next(request)
+
 
 db.init_db()
 

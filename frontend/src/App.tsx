@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, StreamError, getGeminiKeyValue } from "./api";
 import { ApiKeyGate } from "./components/ApiKeyGate";
+import { SalaGate } from "./components/SalaGate";
 import { guardarCofre, salvarDadosRecebidos, sincronizar } from "./cofre";
+import { temSala } from "./sala";
 import type {
   ApprovalRequest,
   Attachment,
@@ -56,6 +58,8 @@ export default function App() {
   );
   const [modelName, setModelName] = useState(MODEL_FALLBACK);
   const [keyMissing, setKeyMissing] = useState(false);
+  // Sala (apelido): as conversas ficam separadas por pessoa no servidor.
+  const [salaMissing, setSalaMissing] = useState(() => !temSala());
   // Modo off: o site gerado não pode depender de internet (sem CDN nenhum).
   const [offlineSite, setOfflineSite] = useState(
     () => localStorage.getItem("siteOffline") === "on"
@@ -130,8 +134,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (salaMissing) return;
     void refreshConversations();
-  }, [refreshConversations]);
+  }, [refreshConversations, salaMissing]);
 
   // Cofre: mantém uma cópia das conversas no aparelho. Se o servidor grátis
   // reiniciar e perder tudo, a cópia é devolvida automaticamente.
@@ -139,6 +144,7 @@ export default function App() {
   // Roda também a cada mudança na lista de conversas, para a cópia nunca
   // ficar desatualizada (o servidor grátis apaga o disco quando quer).
   useEffect(() => {
+    if (salaMissing) return;
     let ativo = true;
     (async () => {
       try {
@@ -154,12 +160,13 @@ export default function App() {
     return () => {
       ativo = false;
     };
-  }, [refreshConversations]);
+  }, [refreshConversations, salaMissing]);
 
   // Vigia do cofre: a cada 30s confere se o servidor ainda tem as conversas.
   // Se ele reiniciou e voltou vazio, devolve a cópia do aparelho na hora —
   // o usuário nem percebe a perda.
   useEffect(() => {
+    if (salaMissing) return;
     let ativo = true;
     const id = window.setInterval(async () => {
       try {
@@ -175,7 +182,7 @@ export default function App() {
       ativo = false;
       window.clearInterval(id);
     };
-  }, [refreshConversations]);
+  }, [refreshConversations, salaMissing]);
   const handleNew = () => {
     setActiveId(null);
     setMessages([]);
@@ -781,7 +788,16 @@ export default function App() {
         />
       </main>
 
-      {keyMissing && (
+      {salaMissing && (
+        <SalaGate
+          onReady={() => {
+            setSalaMissing(false);
+            setError(null);
+          }}
+        />
+      )}
+
+      {!salaMissing && keyMissing && (
         <ApiKeyGate
           onReady={() => {
             setKeyMissing(false);

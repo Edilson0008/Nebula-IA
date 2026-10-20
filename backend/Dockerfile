@@ -25,7 +25,6 @@ COPY backend/ ./
 COPY --from=web /web/dist ./static
 
 ENV WORKSPACE_DIR=/data/workspace
-ENV NEBULA_DB_PATH=/data/chat.db
 ENV AGENT_SCRATCH_DIR=/tmp/nebula
 ENV AGENT_DOWNLOAD_DIR=/tmp/nebula/downloads
 ENV AGENT_APK_DIR=/tmp/nebula/apks

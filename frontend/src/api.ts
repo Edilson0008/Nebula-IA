@@ -1,3 +1,4 @@
+import { getSala } from "./sala";
 import { getSettings } from "./settings";
 
 export type Role = "user" | "model";
@@ -202,6 +203,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers as HeadersInit);
   if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (key) headers.set("X-Gemini-Key", key);
+  const sala = getSala();
+  if (sala) headers.set("X-Nebula-Sala", sala);
   const res = await fetch(`/api${path}`, {
     headers,
     ...init,
@@ -254,6 +257,8 @@ async function chatStream(
   const key = getGeminiKey();
   const headers = new Headers({ "Content-Type": "application/json" });
   if (key) headers.set("X-Gemini-Key", key);
+  const sala = getSala();
+  if (sala) headers.set("X-Nebula-Sala", sala);
   const res = await fetch("/api/chat/stream", {
     method: "POST",
     headers,
