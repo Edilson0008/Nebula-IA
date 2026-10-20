@@ -58,6 +58,8 @@ export default function App() {
   );
   const [modelName, setModelName] = useState(MODEL_FALLBACK);
   const [keyMissing, setKeyMissing] = useState(false);
+  // Aviso quando o servidor está sem banco (conversas não salvam).
+  const [semStorage, setSemStorage] = useState(false);
   // Sala (apelido): as conversas ficam separadas por pessoa no servidor.
   const [salaMissing, setSalaMissing] = useState(() => !temSala());
   // Modo off: o site gerado não pode depender de internet (sem CDN nenhum).
@@ -113,6 +115,7 @@ export default function App() {
         // Só cobra a chave se o usuário ainda não colou a dele.
         setKeyMissing(!health.api_key_configured && !getGeminiKeyValue());
         setModelName(prettyModel(health.model));
+        setSemStorage(health.storage === "sem-storage");
       })
       .catch(() => {
         /* backend fora do ar: o erro aparece ao enviar */
@@ -648,6 +651,19 @@ export default function App() {
     <div className="flex h-full w-full overflow-hidden bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       {/* Fundo animado (aurora/estrelas) atrás de todo o conteúdo. */}
       <Backdrop />
+
+      {semStorage && !salaMissing && (
+        <div
+          className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-2xl
+            border border-amber-300 bg-amber-50 px-4 py-2 text-center text-xs
+            text-amber-800 shadow-lg dark:border-amber-800 dark:bg-amber-950
+            dark:text-amber-200"
+          role="status"
+        >
+          Servidor sem banco de conversas: o histórico não está sendo salvo.
+          (Falta configurar o Supabase no servidor.)
+        </div>
+      )}
 
       <Sidebar
         conversations={conversations}

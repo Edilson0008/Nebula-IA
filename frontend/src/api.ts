@@ -70,6 +70,8 @@ export interface Health {
   model: string;
   embedding_model: string;
   api_key_configured: boolean;
+  /** Onde as conversas ficam guardadas: "supabase" ou "sem-storage". */
+  storage?: string;
 }
 
 /** Estágio de andamento da resposta (enquanto o modelo trabalha). */

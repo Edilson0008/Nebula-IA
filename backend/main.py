@@ -441,6 +441,30 @@ async def _definir_sala(request: Request, call_next):
     return await call_next(request)
 
 
+@app.exception_handler(RuntimeError)
+async def _erro_de_storage(request: Request, exc: RuntimeError):
+    """Erro do banco vira uma mensagem clara (em vez de um 500 cru).
+
+    Acontece, por exemplo, quando o servidor sobe sem as variáveis do
+    Supabase configuradas. A pessoa vê o que fazer em vez de "erro interno".
+    """
+    from fastapi.responses import JSONResponse
+
+    texto = str(exc)
+    if "SUPABASE" in texto or "Supabase" in texto:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": (
+                    "O servidor está sem conexão com o banco de conversas "
+                    "(Supabase). No Render, defina SUPABASE_URL e SUPABASE_KEY "
+                    "em Environment. Enquanto isso, não dá para salvar o histórico."
+                )
+            },
+        )
+    return JSONResponse(status_code=500, content={"detail": texto[:300]})
+
+
 db.init_db()
 
 # Arquivos gerados pela IA: /files/<projeto>/<arquivo>
@@ -1678,6 +1702,7 @@ def health() -> dict:
         "memory_model": MEMORY_MODELS[0],
         "embedding_model": EMBEDDING_MODEL,
         "api_key_configured": gemini is not None,
+        "storage": "supabase" if db.configurado() else "sem-storage",
         "provider_options": _provider_options(),
     }
 
