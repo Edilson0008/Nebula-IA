@@ -54,6 +54,7 @@ import cf_image
 import db_supabase as db
 import design_guide
 import memory
+import planejar
 import pollinations
 import realtime
 import workspace
@@ -1966,6 +1967,41 @@ def chat_stream(req: ChatRequest, request: Request, cliente: "GeminiClient | Non
 
         return StreamingResponse(
             _edit_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    # Pedido VAGO de site/app/loja: a Nébula PERGUNTA antes de criar.
+    #
+    # Por que no código e não no prompt: instruir o modelo a "perguntar quando
+    # for vago" não garante nada — ele pode sair criando (pior ainda com o
+    # Gemini instável, que responde com pressa). Aqui é determinístico: pedido
+    # curto de criar site/app, sem nenhum detalhe (cor, seção, contato, tipo de
+    # negócio), devolve as perguntas direto, sem chamar o modelo. Quando o
+    # usuário responde, a mensagem já vem com detalhes e cai no fluxo normal.
+    if (
+        not req.regenerate
+        and req.edit_message_id is None
+        and not attachments
+        and message.strip()
+        and planejar.deve_perguntar(message)
+    ):
+        pergunta = planejar.resposta_ao_usuario(message)
+        if not ja_salva:
+            db.add_message(conversation_id, "user", message, None)
+        db.add_message(conversation_id, "model", pergunta)
+
+        def _planejar_stream() -> Iterator[str]:
+            yield _sse({"type": "meta", "conversation_id": conversation_id})
+            yield _sse({"type": "delta", "text": pergunta})
+            yield _sse({"type": "done", "model": None})
+
+        return StreamingResponse(
+            _planejar_stream(),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
